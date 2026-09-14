@@ -21,17 +21,22 @@ services:
         generateValue: true
       - key: ENCRYPTION_KEY
         generateValue: true
-      # Clés Binance testnet — jamais commitées, à renseigner manuellement dans le
-      # dashboard Render (Environment) après le premier déploiement.
+      # Clés Binance — jamais commitées, à renseigner manuellement dans le dashboard
+      # Render (Environment). "sync: false" = valeur gérée à la main dans le dashboard,
+      # jamais écrasée par un futur sync du blueprint.
       - key: BINANCE_TESTNET_API_KEY
         sync: false
       - key: BINANCE_TESTNET_API_SECRET
         sync: false
-      # Garde-fou : reste "false" tant que le sujet du §8 (cadre légal) n'a pas été
-      # tranché — voir docs/ARCHITECTURE.md. Ne jamais mettre "true" sans compte
-      # exchange "live" configuré (ExchangeService refuse de démarrer sinon).
+      - key: BINANCE_LIVE_API_KEY
+        sync: false
+      - key: BINANCE_LIVE_API_SECRET
+        sync: false
+      # Garde-fou : reste géré à la main dans le dashboard (jamais réécrasé par le blueprint).
+      # Ne jamais mettre "true" sans BINANCE_LIVE_API_KEY/SECRET déjà renseignées, et
+      # seulement une fois le cadre légal réglé (§8, docs/ARCHITECTURE.md).
       - key: LIVE_TRADING_ENABLED
-        value: 'false'
+        sync: false
 
 databases:
   - name: dot-trader-db

@@ -5,13 +5,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import { decryptSecret } from '../common/crypto.util';
 
 /**
- * Charge le connecteur d'échange actif. Deux garde-fous avant de risquer de l'argent réel :
+ * Charge le connecteur d'échange actif. Garde-fous avant de risquer de l'argent réel :
  *  1. Le mode ("testnet" | "live") est déterminé par LIVE_TRADING_ENABLED côté serveur, jamais
  *     par un flag envoyé par un client — impossible de "passer en réel" par erreur depuis l'UI.
- *  2. Les credentials "live" doivent exister, chiffrés, dans `platform_exchange_accounts`
- *     (voir AdminExchangeController) — pas de repli silencieux sur des clés testnet en .env :
- *     si le mode live est activé sans compte live configuré, le connecteur refuse de démarrer
- *     plutôt que de trader avec les mauvaises clés.
+ *  2. Les credentials "live" viennent soit de `platform_exchange_accounts` (chiffré en base,
+ *     pour une future gestion admin), soit de BINANCE_LIVE_API_KEY/SECRET en variable
+ *     d'environnement (même mécanisme que le testnet) — jamais saisies via une route HTTP de
+ *     cette API : aucun endpoint n'accepte de credentials exchange en entrée.
+ *  3. Si le mode live est activé sans qu'aucune des deux sources ne soit configurée, le
+ *     connecteur refuse de démarrer plutôt que de trader avec les mauvaises clés.
  */
 @Injectable()
 export class ExchangeService implements OnModuleInit {
@@ -50,25 +52,24 @@ export class ExchangeService implements OnModuleInit {
       return;
     }
 
-    if (this.activeMode === 'live') {
-      // Volontairement AUCUN repli sur .env en mode live : un compte live doit être configuré
-      // explicitement via l'admin (encrypté en base), jamais via une variable d'environnement en clair.
-      this.logger.error(
-        'LIVE_TRADING_ENABLED=true mais aucun compte Binance "live" configuré (POST /admin/exchange-account) — connecteur non initialisé.',
+    // Rien en base : repli sur les variables d'environnement du mode actif. Même mécanisme
+    // pour live et testnet — la seule différence est le nom des variables lues.
+    const apiKey = this.config.get<string>(
+      this.activeMode === 'live' ? 'BINANCE_LIVE_API_KEY' : 'BINANCE_TESTNET_API_KEY',
+    );
+    const apiSecret = this.config.get<string>(
+      this.activeMode === 'live' ? 'BINANCE_LIVE_API_SECRET' : 'BINANCE_TESTNET_API_SECRET',
+    );
+    if (!apiKey || !apiSecret) {
+      this.logger.warn(
+        this.activeMode === 'live'
+          ? 'LIVE_TRADING_ENABLED=true mais BINANCE_LIVE_API_KEY/SECRET absents — connecteur non initialisé.'
+          : 'BINANCE_TESTNET_API_KEY/SECRET absents — connecteur non initialisé.',
       );
       this.connector = null;
       return;
     }
-
-    // Mode testnet, rien en base : repli sur .env pour ne pas casser le dev local existant.
-    const apiKey = this.config.get<string>('BINANCE_TESTNET_API_KEY');
-    const apiSecret = this.config.get<string>('BINANCE_TESTNET_API_SECRET');
-    if (!apiKey || !apiSecret) {
-      this.logger.warn('BINANCE_TESTNET_API_KEY/SECRET absents — connecteur non initialisé.');
-      this.connector = null;
-      return;
-    }
-    this.connector = new BinanceConnector({ apiKey, apiSecret, mode: 'testnet' });
+    this.connector = new BinanceConnector({ apiKey, apiSecret, mode: this.activeMode });
   }
 
   getActiveMode(): 'testnet' | 'live' {
@@ -79,7 +80,7 @@ export class ExchangeService implements OnModuleInit {
     if (!this.connector) {
       throw new ServiceUnavailableException(
         this.activeMode === 'live'
-          ? "Connecteur Binance live non configuré — un admin doit d'abord enregistrer un compte via POST /admin/exchange-account."
+          ? 'Connecteur Binance live non configuré — renseignez BINANCE_LIVE_API_KEY/SECRET dans les variables d\'environnement du service.'
           : "Connecteur Binance testnet non configuré — renseignez BINANCE_TESTNET_API_KEY/SECRET dans apps/api/.env (clés à générer sur testnet.binance.vision), puis redémarrez l'API.",
       );
     }
