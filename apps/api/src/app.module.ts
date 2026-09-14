@@ -15,8 +15,10 @@ import { BotModule } from './bot/bot.module';
 import { PositionModule } from './position/position.module';
 import { CustodyModule } from './custody/custody.module';
 import { AdminModule } from './admin/admin.module';
+import { AppController } from './app.controller';
 
 @Module({
+  controllers: [AppController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),

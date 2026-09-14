@@ -590,7 +590,10 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 <script>
-const API = 'http://localhost:3001';
+// Ouvert en local (file://) → pointe vers l'API déployée. Servi par l'API elle-même
+// (Render, puis le futur sous-domaine) → reste sur la même origine, aucun changement
+// à refaire si l'URL change.
+const API = (window.location.protocol === 'file:') ? 'https://dot-trader-api.onrender.com' : window.location.origin;
 let mode = 'login';
 let tokens = JSON.parse(localStorage.getItem('dt_tokens') || 'null');
 
