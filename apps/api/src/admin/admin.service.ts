@@ -171,13 +171,19 @@ export class AdminService {
    */
   async getReconciliation() {
     const mode = this.exchangeService.getActiveMode();
-    const [internalTotals, realBalances] = await Promise.all([
-      this.prisma.wallet.groupBy({
-        by: ['currency'],
-        _sum: { availableBalance: true, lockedBalance: true },
-      }),
-      this.exchangeService.getConnector().getBalance(),
-    ]);
+
+    const internalTotalsPromise = this.prisma.wallet.groupBy({
+      by: ['currency'],
+      _sum: { availableBalance: true, lockedBalance: true },
+    });
+    const realBalancesPromise = this.exchangeService.getConnector().getBalance();
+
+    const [internalTotals, realBalances] = await Promise.all([internalTotalsPromise, realBalancesPromise]).catch(
+      (err) => {
+        const message = err instanceof Error ? err.message : 'Erreur inconnue';
+        throw new BadRequestException(`Impossible d'interroger le solde Binance (${mode}) : ${message}`);
+      },
+    );
 
     const internalByCurrency = new Map(
       internalTotals.map((w) => [

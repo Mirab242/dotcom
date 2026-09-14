@@ -45,21 +45,24 @@ export class ExchangeService implements OnModuleInit {
         this.connector = null;
         return;
       }
-      const apiKey = decryptSecret(account.apiKeyEncrypted, encryptionKey);
-      const apiSecret = decryptSecret(account.apiSecretEncrypted, encryptionKey);
+      const apiKey = decryptSecret(account.apiKeyEncrypted, encryptionKey).trim();
+      const apiSecret = decryptSecret(account.apiSecretEncrypted, encryptionKey).trim();
       this.connector = new BinanceConnector({ apiKey, apiSecret, mode: this.activeMode });
       this.logger.log(`Connecteur Binance (${this.activeMode}) chargé depuis la base (compte ${account.id}).`);
       return;
     }
 
     // Rien en base : repli sur les variables d'environnement du mode actif. Même mécanisme
-    // pour live et testnet — la seule différence est le nom des variables lues.
+    // pour live et testnet — la seule différence est le nom des variables lues. .trim() : un
+    // espace ou retour à la ligne collé au copier-coller dans le dashboard Render suffit à
+    // faire échouer chaque appel Binance avec "invalid X-MBX-APIKEY header" (undici valide
+    // strictement les en-têtes HTTP) — autant absorber ça plutôt que de casser silencieusement.
     const apiKey = this.config.get<string>(
       this.activeMode === 'live' ? 'BINANCE_LIVE_API_KEY' : 'BINANCE_TESTNET_API_KEY',
-    );
+    )?.trim();
     const apiSecret = this.config.get<string>(
       this.activeMode === 'live' ? 'BINANCE_LIVE_API_SECRET' : 'BINANCE_TESTNET_API_SECRET',
-    );
+    )?.trim();
     if (!apiKey || !apiSecret) {
       this.logger.warn(
         this.activeMode === 'live'
