@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -166,5 +167,18 @@ export class AuthService {
   // On ne stocke jamais le refresh token en clair en base — seulement son hash.
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  async bootstrapAdmin(userId: string) {
+    const adminCount = await this.prisma.user.count({ where: { role: Role.ADMIN } });
+    if (adminCount > 0) {
+      throw new ForbiddenException('Un admin existe déjà — ce endpoint ne sert qu\'à amorcer le tout premier compte.');
+    }
+    const user = await this.prisma.user.update({ where: { id: userId }, data: { role: Role.ADMIN } });
+    await this.prisma.auditLog.create({
+      data: { actorId: userId, action: 'user.role.admin', target: userId, metadata: JSON.stringify({ via: 'bootstrap' }) },
+    });
+    const { passwordHash, twoFaSecret, ...safe } = user;
+    return safe;
   }
 }
