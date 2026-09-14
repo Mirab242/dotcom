@@ -111,7 +111,7 @@
   footer{border-top:1px solid var(--border);padding:36px 32px;text-align:center;color:var(--sub);font-size:12.5px}
 
   /* ============ AUTH MODAL ============ */
-  .modal-ov{position:fixed;inset:0;background:rgba(5,6,10,.7);backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:all .25s}
+  .modal-ov{position:fixed;inset:0;background:rgba(5,6,10,.7);backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:all .25s;padding:16px}
   .modal-ov.open{opacity:1;visibility:visible}
   .modal-box{background:var(--surf);border:1px solid var(--border);border-radius:18px;padding:32px;width:100%;max-width:400px;position:relative;transform:translateY(16px) scale(.97);transition:all .3s cubic-bezier(.34,1.56,.64,1)}
   .modal-ov.open .modal-box{transform:translateY(0) scale(1)}
@@ -187,6 +187,26 @@
   .switch input:checked + .slider{background:#4a1f1f}
   .switch input:checked + .slider:before{background:var(--red);transform:translateX(16px)}
   .value.green{color:var(--green)}
+
+  /* ============ MOBILE APP SHELL ============ */
+  div:has(> table){overflow-x:auto}
+  .menu-toggle{display:none;background:none;border:none;color:var(--text);font-size:20px;line-height:1;cursor:pointer;padding:6px 8px;border-radius:8px}
+  .menu-toggle:active{background:var(--surf2)}
+  .sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(5,6,10,.6);z-index:399}
+  .sidebar-backdrop.open{display:block}
+  @media(max-width:860px){
+    .menu-toggle{display:inline-flex;align-items:center}
+    .sidebar{position:fixed;top:0;left:0;height:100vh;z-index:400;transform:translateX(-100%);transition:transform .25s ease;box-shadow:2px 0 24px rgba(0,0,0,.4)}
+    .sidebar.open{transform:translateX(0)}
+    .topbar{padding:14px 16px}
+    .topbar div>strong{max-width:38vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom}
+    main.content{padding:16px}
+    .card{padding:16px}
+    .tbar{flex-wrap:wrap;row-gap:10px}
+  }
+  @media(max-width:480px){
+    .stats{grid-template-columns:1fr !important}
+  }
 </style>
 </head>
 <body>
@@ -307,7 +327,8 @@
 <!-- ============ APP (connecté) ============ -->
 <div id="toast" class="msg success" style="position:fixed;bottom:24px;right:24px;z-index:999;max-width:320px;display:none"></div>
 <div id="app" class="hidden">
-  <aside class="sidebar">
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
     <div class="logo"><svg width="26" height="26" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#5b8def"/><stop offset="100%" stop-color="#8e6bef"/></linearGradient></defs><rect width="40" height="40" rx="10" fill="url(#lg1)"/><line x1="12" y1="14" x2="12" y2="10" stroke="#fff" stroke-width="2" stroke-linecap="round"/><rect x="9" y="14" width="6" height="10" rx="1.5" fill="#fff"/><line x1="12" y1="24" x2="12" y2="28" stroke="#fff" stroke-width="2" stroke-linecap="round"/><line x1="20" y1="9" x2="20" y2="6" stroke="#fff" stroke-width="2" stroke-linecap="round"/><rect x="17" y="9" width="6" height="14" rx="1.5" fill="#fff"/><line x1="20" y1="23" x2="20" y2="27" stroke="#fff" stroke-width="2" stroke-linecap="round"/><line x1="28" y1="6" x2="28" y2="4" stroke="#fff" stroke-width="2" stroke-linecap="round"/><rect x="25" y="6" width="6" height="18" rx="1.5" fill="#fff"/><line x1="28" y1="24" x2="28" y2="30" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>DOT·TRADER</div>
     <div class="nav-item active" id="navDashboard" onclick="showView('dashboard')"><span class="idot"></span> Dashboard</div>
     <div class="nav-item" id="navTrading" onclick="showView('trading')"><span class="idot"></span> Trading <span class="soon live">Live</span></div>
@@ -317,9 +338,12 @@
     <div class="nav-item" id="navAdmin" onclick="showView('admin')"><span class="idot"></span> Admin <span class="soon live">Live</span></div>
     <div class="bottom"><div class="nav-item" onclick="logout()">↩ Déconnexion</div></div>
   </aside>
-  <div style="flex:1;display:flex;flex-direction:column">
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
     <div class="topbar">
-      <div>Bonjour, <strong id="uEmail">—</strong></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+        <div>Bonjour, <strong id="uEmail">—</strong></div>
+      </div>
       <span class="role-pill user" id="uRolePill">user</span>
     </div>
     <main class="content">
@@ -1243,6 +1267,15 @@ function showView(name){
   if(name==='portefeuille') loadWalletView();
   if(name==='dashboard') loadDashboardStats();
   if(name==='bot'){ loadSignal(); loadBotSettings(); }
+  closeSidebar(); // referme le menu tiroir sur mobile après un choix
+}
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarBackdrop').classList.toggle('open');
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarBackdrop').classList.remove('open');
 }
 
 /* ---- Trading (aperçu) ---- */
