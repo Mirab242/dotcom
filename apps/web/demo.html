@@ -317,6 +317,11 @@
 
   <footer>
     © 2026 DOT Trader — Testnet uniquement, aucun fonds réel. Ceci n'est pas un conseil financier.
+    <span style="margin-left:14px">
+      <a href="/legal/mentions-legales" style="color:var(--sub);text-decoration:underline">Mentions légales</a> ·
+      <a href="/legal/cgu" style="color:var(--sub);text-decoration:underline">CGU</a> ·
+      <a href="/legal/confidentialite" style="color:var(--sub);text-decoration:underline">Confidentialité</a>
+    </span>
   </footer>
 </div>
 
@@ -473,6 +478,26 @@
           <div id="custodyHistoryBox"><div class="empty-state">Chargement…</div></div>
         </div>
         <div class="card">
+          <h2>Vérification d'identité (KYC)</h2>
+          <p style="color:var(--sub);font-size:12.5px;margin-bottom:14px">Pas encore exigée pour trader en testnet — deviendra nécessaire avant tout dépôt réel selon les obligations réglementaires applicables.</p>
+          <div id="kycStatusBox"><div class="empty-state">Chargement…</div></div>
+          <div id="kycForm" class="hidden" style="margin-top:16px">
+            <div class="wallet-grid" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+              <input id="kycFullName" placeholder="Nom complet">
+              <input id="kycDob" placeholder="Date de naissance (AAAA-MM-JJ)">
+              <input id="kycCountry" placeholder="Pays de résidence">
+              <select id="kycDocType" style="background:var(--bg2,#12151c);color:#fff;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:0 10px">
+                <option value="passport">Passeport</option>
+                <option value="national_id">Carte d'identité</option>
+                <option value="driver_license">Permis de conduire</option>
+              </select>
+              <input id="kycDocNumber" placeholder="Numéro du document">
+              <input id="kycDocFile" type="file" accept="image/*,application/pdf">
+            </div>
+            <button class="btn btn-primary" style="max-width:220px" onclick="submitKyc()">Envoyer la demande</button>
+          </div>
+        </div>
+        <div class="card">
           <h2>Ordres récents (règlement du portefeuille)</h2>
           <div id="ordersHistoryBox"><div class="empty-state">Chargement…</div></div>
         </div>
@@ -588,6 +613,13 @@
             <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="loadAdminWithdrawals()">🔄 Rafraîchir</button>
           </div>
           <div id="adminWithdrawalsBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h2 style="margin:0">Vérifications d'identité (KYC) en attente</h2>
+            <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="loadAdminKyc()">🔄 Rafraîchir</button>
+          </div>
+          <div id="adminKycBox"><div class="empty-state">Chargement…</div></div>
         </div>
         <div class="card">
           <h2>Bots — tous utilisateurs</h2>
@@ -916,6 +948,7 @@ async function loadDashboardStats(){
 async function loadWalletView(){
   const grid = document.getElementById('walletGrid');
   const histBox = document.getElementById('ordersHistoryBox');
+  loadKycStatus();
   try{
     const wallets = await fetchWallets();
     const baseCurrencies = ['USDT','DOT'];
@@ -1008,6 +1041,57 @@ async function loadCustodyHistory(){
     </tbody></table>`;
   }catch(e){
     box.innerHTML = '<div class="empty-state">Impossible de charger l\'historique.</div>';
+  }
+}
+async function loadKycStatus(){
+  const box = document.getElementById('kycStatusBox');
+  const form = document.getElementById('kycForm');
+  try{
+    const res = await fetch(API + '/kyc/me', { headers:{ Authorization: 'Bearer ' + tokens.accessToken } });
+    const data = await res.json();
+    const labels = { none:['⚪ Non soumise','var(--sub)'], pending:['🕒 En attente de validation','var(--gold)'], verified:['✅ Vérifiée','var(--green)'], rejected:['❌ Rejetée','var(--red)'] };
+    const [label, color] = labels[data.kycStatus] || labels.none;
+    box.innerHTML = `<p style="color:${color};font-weight:700;font-size:13px">${label}</p>` +
+      (data.submission && data.submission.status==='rejected' && data.submission.rejectionReason
+        ? `<p style="color:var(--sub);font-size:12px;margin-top:6px">Motif : ${esc(data.submission.rejectionReason)}</p>` : '');
+    form.classList.toggle('hidden', data.kycStatus==='pending' || data.kycStatus==='verified');
+  }catch(e){
+    box.innerHTML = '<div class="empty-state">Impossible de charger le statut.</div>';
+  }
+}
+function readFileAsBase64(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(reader.result); // data URL complète (data:image/png;base64,...) — utilisable directement en <img src>
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function submitKyc(){
+  const fullName = document.getElementById('kycFullName').value.trim();
+  const dateOfBirth = document.getElementById('kycDob').value.trim();
+  const country = document.getElementById('kycCountry').value.trim();
+  const idDocumentType = document.getElementById('kycDocType').value;
+  const idDocumentNumber = document.getElementById('kycDocNumber').value.trim();
+  const fileInput = document.getElementById('kycDocFile');
+  if(!fullName || !dateOfBirth || !country || !idDocumentNumber){ showMsgToast('⚠️ Remplis tous les champs obligatoires'); return; }
+  try{
+    let documentImageB64;
+    if(fileInput.files[0]){
+      if(fileInput.files[0].size > 3*1024*1024){ showMsgToast('⚠️ Fichier trop volumineux (max 3 Mo)'); return; }
+      documentImageB64 = await readFileAsBase64(fileInput.files[0]);
+    }
+    const res = await fetch(API + '/kyc', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization: 'Bearer ' + tokens.accessToken },
+      body: JSON.stringify({ fullName, dateOfBirth, country, idDocumentType, idDocumentNumber, documentImageB64 })
+    });
+    const data = await res.json();
+    if(!res.ok){ showMsgToast('❌ ' + (Array.isArray(data.message)?data.message.join(', '):data.message)); return; }
+    showMsgToast('✅ Demande envoyée — en attente de validation admin');
+    loadKycStatus();
+  }catch(e){
+    showMsgToast("⚠️ Impossible de contacter l'API");
   }
 }
 
@@ -1291,7 +1375,7 @@ function showView(name){
     document.getElementById(NAV_IDS[v]).classList.toggle('active', v===name);
   });
   if(name==='trading'){ setTimeout(loadRealCandles, 30); loadPositions(); loadOpenOrders(); }
-  if(name==='admin'){ loadAdminStats(); loadAdminReconciliation(); loadAdminUsers(); loadAdminDeposits(); loadAdminWithdrawals(); loadAdminBots(); loadAdminAuditLogs(); loadKillSwitch(); loadRiskLimits(); loadRiskStatus(); }
+  if(name==='admin'){ loadAdminStats(); loadAdminReconciliation(); loadAdminUsers(); loadAdminDeposits(); loadAdminWithdrawals(); loadAdminKyc(); loadAdminBots(); loadAdminAuditLogs(); loadKillSwitch(); loadRiskLimits(); loadRiskStatus(); }
   if(name==='portefeuille') loadWalletView();
   if(name==='dashboard') loadDashboardStats();
   if(name==='bot'){ loadSignal(); loadBotSettings(); }
@@ -1660,6 +1744,45 @@ async function adminApproveWithdrawal(id){
 }
 async function adminRejectWithdrawal(id){
   try{ await adminApi('/admin/withdrawals/'+id+'/reject', {method:'POST'}); showMsgToast('✅ Retrait rejeté — fonds déverrouillés'); loadAdminWithdrawals(); }
+  catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function loadAdminKyc(){
+  const box = document.getElementById('adminKycBox');
+  try{
+    const submissions = await adminApi('/admin/kyc');
+    if(!submissions.length){ box.innerHTML = '<div class="empty-state">Aucune demande en attente.</div>'; return; }
+    box.innerHTML = `<table class="dt-table"><thead><tr><th>Utilisateur</th><th>Nom</th><th>Pays</th><th>Document</th><th>Date</th><th></th></tr></thead><tbody>
+      ${submissions.map(s=>`<tr>
+        <td>${esc(s.user.email)}</td>
+        <td>${esc(s.fullName)}</td>
+        <td>${esc(s.country)}</td>
+        <td>${esc(s.idDocumentType)} · ${esc(s.idDocumentNumber)}</td>
+        <td>${new Date(s.createdAt).toLocaleDateString('fr-FR')}</td>
+        <td style="display:flex;gap:5px;flex-wrap:wrap">
+          <button class="btn btn-ghost" style="padding:4px 10px;font-size:10.5px" onclick="adminViewKycDocument('${s.id}')">Voir doc.</button>
+          <button class="btn btn-primary" style="padding:4px 10px;font-size:10.5px" onclick="adminApproveKyc('${s.id}')">Approuver</button>
+          <button class="btn btn-ghost" style="padding:4px 10px;font-size:10.5px;color:var(--red)" onclick="adminRejectKyc('${s.id}')">Rejeter</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  }catch(e){ box.innerHTML = '<div class="empty-state">' + e.message + '</div>'; }
+}
+async function adminViewKycDocument(id){
+  try{
+    const data = await adminApi('/admin/kyc/'+id+'/document');
+    if(!data.documentImageB64){ showMsgToast('⚠️ Aucun document joint pour cette demande'); return; }
+    const w = window.open('');
+    if(w) w.document.write(`<title>Document KYC</title><body style="margin:0;background:#111"><img src="${data.documentImageB64}" style="max-width:100%;display:block;margin:0 auto"></body>`);
+  }catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function adminApproveKyc(id){
+  try{ await adminApi('/admin/kyc/'+id+'/approve', {method:'POST'}); showMsgToast('✅ Identité vérifiée'); loadAdminKyc(); loadAdminUsers(); }
+  catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function adminRejectKyc(id){
+  const reason = prompt('Motif du rejet (visible par l\'utilisateur) :', '');
+  if(!reason || !reason.trim()){ showMsgToast('⚠️ Motif obligatoire'); return; }
+  try{ await adminApi('/admin/kyc/'+id+'/reject', {method:'POST', body:JSON.stringify({reason})}); showMsgToast('✅ Demande rejetée'); loadAdminKyc(); loadAdminUsers(); }
   catch(e){ showMsgToast('❌ ' + e.message); }
 }
 async function loadAdminBots(){

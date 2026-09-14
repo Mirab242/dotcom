@@ -1,10 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { json, urlencoded } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  // Limite Express par défaut (100kb) trop basse pour la soumission KYC (document d'identité
+  // encodé en base64, jusqu'à ~3 Mo) — relevée explicitement plutôt que de casser cet endpoint.
+  app.use(json({ limit: '6mb' }));
+  app.use(urlencoded({ extended: true, limit: '6mb' }));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.use(
     helmet({

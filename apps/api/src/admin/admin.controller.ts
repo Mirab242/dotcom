@@ -5,11 +5,13 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser, AuthenticatedUser } from '../auth/decorators/current-user.decorator';
 import { CustodyService } from '../custody/custody.service';
+import { KycService } from '../kyc/kyc.service';
 import { AdminService } from './admin.service';
 import { SetUserStatusDto } from './dto/set-user-status.dto';
 import { SetUserRoleDto } from './dto/set-user-role.dto';
 import { SetUserSubscriptionDto } from './dto/set-user-subscription.dto';
 import { AdjustWalletDto } from './dto/adjust-wallet.dto';
+import { RejectKycDto } from './dto/reject-kyc.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -18,6 +20,7 @@ export class AdminController {
   constructor(
     private adminService: AdminService,
     private custodyService: CustodyService,
+    private kycService: KycService,
   ) {}
 
   @Get('stats')
@@ -102,5 +105,25 @@ export class AdminController {
   @Post('withdrawals/:id/reject')
   rejectWithdrawal(@CurrentUser() admin: AuthenticatedUser, @Param('id') id: string) {
     return this.custodyService.rejectWithdrawal(admin.userId, id);
+  }
+
+  @Get('kyc')
+  listKyc() {
+    return this.kycService.listPending();
+  }
+
+  @Get('kyc/:id/document')
+  getKycDocument(@Param('id') id: string) {
+    return this.kycService.getSubmissionDocument(id);
+  }
+
+  @Post('kyc/:id/approve')
+  approveKyc(@CurrentUser() admin: AuthenticatedUser, @Param('id') id: string) {
+    return this.kycService.approve(admin.userId, id);
+  }
+
+  @Post('kyc/:id/reject')
+  rejectKyc(@CurrentUser() admin: AuthenticatedUser, @Param('id') id: string, @Body() dto: RejectKycDto) {
+    return this.kycService.reject(admin.userId, id, dto.reason);
   }
 }

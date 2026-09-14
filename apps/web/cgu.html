@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CGU — DOT Trader</title>
+<style>
+  :root{ --bg:#0a0d12; --surf:#12151d; --surf2:#181c27; --border:#232838; --text:#eef0f4; --sub:#8b93a7; --gold:#e0b73d; --accent:#5b8def; --red:#ef5350; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',sans-serif;line-height:1.7;padding:0 20px 80px}
+  a{color:var(--accent)}
+  .wrap{max-width:760px;margin:0 auto}
+  header{padding:28px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);margin-bottom:32px}
+  header a.home{font-weight:800;letter-spacing:.02em}
+  h1{font-size:26px;margin-bottom:8px}
+  h2{font-size:16px;margin:32px 0 10px;color:var(--text)}
+  h3{font-size:13.5px;margin:18px 0 6px;color:var(--text)}
+  p,li{color:var(--sub);font-size:14px}
+  ul{padding-left:20px;margin:8px 0}
+  .draft-banner{background:#3a2f0f;border:1px solid #5c4a15;color:var(--gold);font-size:12.5px;font-weight:600;padding:12px 16px;border-radius:10px;margin-bottom:28px}
+  .risk-banner{background:#3a1418;border:1px solid #5c1f24;color:#ff9b9b;font-size:12.5px;font-weight:600;padding:14px 16px;border-radius:10px;margin-bottom:28px}
+  .todo{background:var(--surf2);border:1px dashed var(--border);color:var(--gold);padding:2px 6px;border-radius:5px;font-size:12.5px;font-weight:700}
+  .toc{background:var(--surf);border:1px solid var(--border);border-radius:12px;padding:18px 22px;margin-bottom:30px}
+  .toc a{display:block;font-size:13px;color:var(--sub);padding:4px 0}
+  .toc a:hover{color:var(--text)}
+  footer{margin-top:50px;padding-top:20px;border-top:1px solid var(--border);font-size:12px;color:var(--sub)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="home" href="/">← DOT·TRADER</a>
+    <span style="font-size:12px;color:var(--sub)">Dernière mise à jour : 14/09/2026</span>
+  </header>
+
+  <h1>Conditions Générales d'Utilisation</h1>
+  <div class="draft-banner">⚠️ Brouillon généré pour démarrer — à faire valider par un professionnel du droit avant toute mise en ligne définitive auprès du public, en particulier les clauses de responsabilité et de conformité réglementaire (§8, §9).</div>
+  <div class="risk-banner">⚠️ Le trading de cryptomonnaies comporte un risque de perte en capital, pouvant aller jusqu'à la perte totale des fonds déposés. Les performances passées ne préjugent pas des performances futures. N'investissez que ce que vous êtes prêt à perdre.</div>
+
+  <div class="toc">
+    <a href="#objet">1. Objet</a>
+    <a href="#compte">2. Création de compte et accès</a>
+    <a href="#garde">3. Conservation des fonds (modèle custodial)</a>
+    <a href="#trading">4. Modes de trading et moteur de signaux</a>
+    <a href="#risque">5. Gestion du risque</a>
+    <a href="#frais">6. Frais, commissions et abonnements</a>
+    <a href="#depot">7. Dépôts et retraits</a>
+    <a href="#suspension">8. Suspension et clôture de compte</a>
+    <a href="#responsabilite">9. Limitation de responsabilité</a>
+    <a href="#droit">10. Droit applicable</a>
+  </div>
+
+  <h2 id="objet">1. Objet</h2>
+  <p>Les présentes CGU régissent l'utilisation de la plateforme DOT Trader (ci-après "la Plateforme"), permettant à un utilisateur (ci-après "l'Utilisateur") de trader des cryptomonnaies (DOT, BTC, ETH, SOL contre USDT) en mode manuel, assisté par un moteur de signaux, ou automatique.</p>
+
+  <h2 id="compte">2. Création de compte et accès</h2>
+  <ul>
+    <li>L'inscription nécessite une adresse email valide et un mot de passe. L'authentification à deux facteurs (2FA) est disponible et recommandée.</li>
+    <li>L'Utilisateur doit être majeur et juridiquement capable de contracter.</li>
+    <li>L'Utilisateur s'engage à fournir des informations exactes et à les maintenir à jour.</li>
+    <li>Selon la réglementation applicable, une vérification d'identité (KYC) peut être exigée avant tout dépôt ou retrait. <span class="todo">Conditions précises à compléter selon le statut réglementaire final.</span></li>
+  </ul>
+
+  <h2 id="garde">3. Conservation des fonds (modèle custodial)</h2>
+  <p>La Plateforme fonctionne selon un modèle custodial : les fonds déposés par les Utilisateurs sont conservés sur un compte d'exchange détenu par l'opérateur de la Plateforme, et non directement par chaque Utilisateur. Chaque Utilisateur dispose d'un solde interne (comptabilité) reflétant sa part des fonds conservés.</p>
+  <p>Les dépôts et retraits sont traités manuellement par un administrateur après validation (modèle semi-manuel), le temps qu'une intégration de paiement automatisée soit mise en place.</p>
+  <p>L'opérateur met en œuvre des contrôles de réconciliation entre la comptabilité interne et le solde réel détenu sur l'exchange.</p>
+
+  <h2 id="trading">4. Modes de trading et moteur de signaux</h2>
+  <ul>
+    <li><strong>Manuel</strong> : l'Utilisateur passe ses ordres lui-même.</li>
+    <li><strong>Assisté</strong> : un moteur d'analyse technique (EMA, RSI, MACD, structure de marché, multi-timeframe) génère des signaux avec un score de confiance et une justification ; l'Utilisateur valide ou non chaque signal avant exécution.</li>
+    <li><strong>Automatique</strong> : sur activation explicite (réservée au tier "pro"), un bot exécute les signaux du moteur sans validation humaine, dans les limites fixées par le moteur de risque.</li>
+  </ul>
+  <p>Le moteur de signaux constitue un outil d'aide à la décision et ne saurait être interprété comme un conseil en investissement personnalisé.</p>
+
+  <h2 id="risque">5. Gestion du risque</h2>
+  <p>La Plateforme applique des garde-fous automatiques : stop-loss obligatoire sur toute position ouverte via signal, dimensionnement de position basé sur un pourcentage du capital, limites de perte journalière et de drawdown maximal par compte, et un "kill switch" permettant à un administrateur de suspendre instantanément tout trading sur la Plateforme. Ces mécanismes réduisent le risque sans l'éliminer.</p>
+
+  <h2 id="frais">6. Frais, commissions et abonnements</h2>
+  <p>La Plateforme propose deux tiers : "free" (risque plafonné par trade, commission prélevée sur les trades gagnants) et "pro" (plafond de risque plus élevé, mode automatique débloqué, commission réduite ou nulle). Le détail des taux applicables est disponible dans l'application. <span class="todo">Grille tarifaire définitive et modalités de facturation à compléter.</span></p>
+
+  <h2 id="depot">7. Dépôts et retraits</h2>
+  <p>Les demandes de retrait entraînent le verrouillage immédiat des fonds concernés dans le solde interne de l'Utilisateur, dans l'attente de validation par un administrateur. La Plateforme s'efforce de traiter les demandes dans un délai raisonnable, sans garantie de délai fixe à ce stade. <span class="todo">Délais contractuels et moyens de paiement définitifs à compléter.</span></p>
+
+  <h2 id="suspension">8. Suspension et clôture de compte</h2>
+  <p>L'opérateur se réserve le droit de suspendre ou clôturer un compte en cas de violation des présentes CGU, de soupçon de fraude, d'activité illicite, ou sur demande des autorités compétentes. Un compte suspendu perd immédiatement l'accès au trading ; l'accès aux fonds fait l'objet d'une procédure de vérification avant tout retrait.</p>
+
+  <h2 id="responsabilite">9. Limitation de responsabilité</h2>
+  <p>L'opérateur ne garantit pas la disponibilité continue de la Plateforme, ni l'absence d'erreur du moteur de signaux ou du bot automatique. L'Utilisateur reconnaît que le trading de cryptomonnaies comporte un risque de perte en capital et que l'opérateur ne saurait être tenu responsable des pertes résultant de l'utilisation de la Plateforme, sauf faute lourde ou intentionnelle. <span class="todo">Clause à faire réviser par un juriste — les limitations de responsabilité opposables à des consommateurs sont strictement encadrées selon la juridiction.</span></p>
+
+  <h2 id="droit">10. Droit applicable et juridiction</h2>
+  <p>Droit applicable : <span class="todo">à compléter selon la juridiction d'immatriculation de l'opérateur</span>. Tribunaux compétents : <span class="todo">à compléter</span>.</p>
+
+  <footer>
+    <a href="/">Retour à l'accueil</a> · <a href="/legal/mentions-legales">Mentions légales</a> · <a href="/legal/confidentialite">Confidentialité</a>
+  </footer>
+</div>
+</body>
+</html>

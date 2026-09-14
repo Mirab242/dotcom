@@ -25,19 +25,46 @@ model User {
   subscriptionTier String  @default("free") // "free" | "pro"
   referralCode     String  @unique
   referredByCode   String?
+  kycStatus        String   @default("none") // none | pending | verified | rejected — voir KycSubmission
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  wallets       Wallet[]
-  refreshTokens RefreshToken[]
-  auditLogs     AuditLog[]
-  orders        Order[]
-  botInstances  BotInstance[]
-  positions     Position[]
-  deposits      Deposit[]
-  withdrawals   Withdrawal[]
+  wallets        Wallet[]
+  refreshTokens  RefreshToken[]
+  auditLogs      AuditLog[]
+  orders         Order[]
+  botInstances   BotInstance[]
+  positions      Position[]
+  deposits       Deposit[]
+  withdrawals    Withdrawal[]
+  kycSubmissions KycSubmission[]
 
   @@map("users")
+}
+
+// Vérification d'identité — pas encore exigée pour trader (aucun palier légal ne l'impose tant
+// que tout reste en testnet), mais nécessaire dès que des dépôts réels sont acceptés si le statut
+// PSAN/VASP l'exige (§8 ARCHITECTURE.md). Document stocké en base (base64) en attendant une vraie
+// solution de stockage objet (S3/Cloudinary) — acceptable pour un volume d'utilisateurs restreint,
+// à revoir avant une ouverture large.
+model KycSubmission {
+  id                String    @id @default(uuid())
+  userId            String
+  fullName          String
+  dateOfBirth       String
+  country           String
+  idDocumentType    String // "passport" | "national_id" | "driver_license"
+  idDocumentNumber  String
+  documentImageB64  String? // scan du document, encodé base64 — optionnel (texte seul possible en V1)
+  status            String    @default("pending") // pending | approved | rejected
+  rejectionReason   String?
+  reviewedByAdminId String?
+  reviewedAt        DateTime?
+  createdAt         DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("kyc_submissions")
 }
 
 // Le stop-loss/take-profit stockés sur Order (mode assisted/auto) ne servaient jusqu'ici

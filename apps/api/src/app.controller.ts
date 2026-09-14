@@ -18,4 +18,19 @@ export class AppController {
   health() {
     return { status: 'ok' };
   }
+
+  @Get('legal/mentions-legales')
+  serveMentionsLegales(@Res() res: Response) {
+    res.sendFile(join(process.cwd(), 'apps', 'web', 'mentions-legales.html'));
+  }
+
+  @Get('legal/cgu')
+  serveCgu(@Res() res: Response) {
+    res.sendFile(join(process.cwd(), 'apps', 'web', 'cgu.html'));
+  }
+
+  @Get('legal/confidentialite')
+  serveConfidentialite(@Res() res: Response) {
+    res.sendFile(join(process.cwd(), 'apps', 'web', 'confidentialite.html'));
+  }
 }
