@@ -1,9 +1,10 @@
-import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { SUPPORTED_SYMBOLS } from '@dot-trader/shared-types';
 
 export class RunBacktestDto {
   @IsOptional()
-  @IsString()
+  @IsIn(SUPPORTED_SYMBOLS)
   symbol?: string = 'DOT/USDT';
 
   @IsOptional()

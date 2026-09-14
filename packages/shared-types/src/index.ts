@@ -57,3 +57,9 @@ export interface Balance {
   used: number;
   total: number;
 }
+
+// Marchés actifs de la plateforme (§ roadmap Phase 7). Toute route qui accepte un symbole
+// en entrée doit le restreindre à cette liste (@IsIn) — un symbole non contraint transite
+// vers l'admin (ordres, bots, positions) et devient un vecteur XSS stocké si rendu sans
+// échappement côté frontend.
+export const SUPPORTED_SYMBOLS = ['DOT/USDT', 'BTC/USDT', 'ETH/USDT', 'SOL/USDT'] as const;

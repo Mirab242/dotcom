@@ -9,6 +9,11 @@ import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
  * aucun fonds réel tant que le cadre légal n'est pas tranché (§8). Un dépôt/retrait ici ne fait
  * que créditer/débiter le wallet interne testnet, sur validation explicite d'un admin — exactement
  * le modèle recommandé pour la V1 dans l'architecture.
+ *
+ * Chaque approbation/rejet est une transaction unique qui (1) revendique l'enregistrement en le
+ * faisant sortir de "pending" via un update atomique, et (2) applique le mouvement de wallet —
+ * pour que deux clics admin concurrents (ou un double-clic accidentel) ne puissent jamais faire
+ * l'un et l'autre passer : seul le premier à revendiquer "pending" gagne, le second échoue proprement.
  */
 @Injectable()
 export class CustodyService {
@@ -40,25 +45,31 @@ export class CustodyService {
   async creditDeposit(adminId: string, depositId: string) {
     const deposit = await this.prisma.deposit.findUnique({ where: { id: depositId } });
     if (!deposit) throw new NotFoundException('Dépôt introuvable');
-    if (deposit.status !== 'pending') throw new BadRequestException(`Dépôt déjà traité (statut: ${deposit.status})`);
 
-    await this.walletService.credit(deposit.userId, deposit.currency, Number(deposit.amount), 'deposit', deposit.id);
-
-    return this.prisma.deposit.update({
-      where: { id: depositId },
-      data: { status: 'credited', creditedByAdminId: adminId, creditedAt: new Date() },
+    return this.prisma.$transaction(async (tx) => {
+      const claim = await tx.deposit.updateMany({
+        where: { id: depositId, status: 'pending' },
+        data: { status: 'credited', creditedByAdminId: adminId, creditedAt: new Date() },
+      });
+      if (claim.count === 0) {
+        throw new BadRequestException('Dépôt déjà traité');
+      }
+      await this.walletService.credit(deposit.userId, deposit.currency, Number(deposit.amount), 'deposit', deposit.id, tx);
+      return tx.deposit.findUniqueOrThrow({ where: { id: depositId } });
     });
   }
 
   async rejectDeposit(adminId: string, depositId: string) {
-    const deposit = await this.prisma.deposit.findUnique({ where: { id: depositId } });
-    if (!deposit) throw new NotFoundException('Dépôt introuvable');
-    if (deposit.status !== 'pending') throw new BadRequestException(`Dépôt déjà traité (statut: ${deposit.status})`);
-
-    return this.prisma.deposit.update({
-      where: { id: depositId },
+    const result = await this.prisma.deposit.updateMany({
+      where: { id: depositId, status: 'pending' },
       data: { status: 'rejected', creditedByAdminId: adminId },
     });
+    if (result.count === 0) {
+      const deposit = await this.prisma.deposit.findUnique({ where: { id: depositId } });
+      if (!deposit) throw new NotFoundException('Dépôt introuvable');
+      throw new BadRequestException(`Dépôt déjà traité (statut: ${deposit.status})`);
+    }
+    return this.prisma.deposit.findUniqueOrThrow({ where: { id: depositId } });
   }
 
   // --- Retraits ---
@@ -86,27 +97,42 @@ export class CustodyService {
   async approveWithdrawal(adminId: string, withdrawalId: string) {
     const withdrawal = await this.prisma.withdrawal.findUnique({ where: { id: withdrawalId } });
     if (!withdrawal) throw new NotFoundException('Retrait introuvable');
-    if (withdrawal.status !== 'pending') throw new BadRequestException(`Retrait déjà traité (statut: ${withdrawal.status})`);
 
-    await this.walletService.debitLocked(withdrawal.userId, withdrawal.currency, Number(withdrawal.amount), 'withdrawal', withdrawal.id);
-
-    return this.prisma.withdrawal.update({
-      where: { id: withdrawalId },
-      // "sent" simule l'exécution manuelle réelle (virement / mobile money) faite hors plateforme par l'admin.
-      data: { status: 'sent', approvedByAdminId: adminId, processedAt: new Date() },
+    return this.prisma.$transaction(async (tx) => {
+      const claim = await tx.withdrawal.updateMany({
+        where: { id: withdrawalId, status: 'pending' },
+        // "sent" simule l'exécution manuelle réelle (virement / mobile money) faite hors plateforme par l'admin.
+        data: { status: 'sent', approvedByAdminId: adminId, processedAt: new Date() },
+      });
+      if (claim.count === 0) {
+        throw new BadRequestException('Retrait déjà traité');
+      }
+      await this.walletService.debitLocked(
+        withdrawal.userId,
+        withdrawal.currency,
+        Number(withdrawal.amount),
+        'withdrawal',
+        withdrawal.id,
+        tx,
+      );
+      return tx.withdrawal.findUniqueOrThrow({ where: { id: withdrawalId } });
     });
   }
 
   async rejectWithdrawal(adminId: string, withdrawalId: string) {
     const withdrawal = await this.prisma.withdrawal.findUnique({ where: { id: withdrawalId } });
     if (!withdrawal) throw new NotFoundException('Retrait introuvable');
-    if (withdrawal.status !== 'pending') throw new BadRequestException(`Retrait déjà traité (statut: ${withdrawal.status})`);
 
-    await this.walletService.unlock(withdrawal.userId, withdrawal.currency, Number(withdrawal.amount));
-
-    return this.prisma.withdrawal.update({
-      where: { id: withdrawalId },
-      data: { status: 'rejected', approvedByAdminId: adminId, processedAt: new Date() },
+    return this.prisma.$transaction(async (tx) => {
+      const claim = await tx.withdrawal.updateMany({
+        where: { id: withdrawalId, status: 'pending' },
+        data: { status: 'rejected', approvedByAdminId: adminId, processedAt: new Date() },
+      });
+      if (claim.count === 0) {
+        throw new BadRequestException('Retrait déjà traité');
+      }
+      await this.walletService.unlock(withdrawal.userId, withdrawal.currency, Number(withdrawal.amount), tx);
+      return tx.withdrawal.findUniqueOrThrow({ where: { id: withdrawalId } });
     });
   }
 }

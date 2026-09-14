@@ -35,6 +35,11 @@ export class AdminController {
     return this.adminService.listAllBots();
   }
 
+  @Get('reconciliation')
+  getReconciliation() {
+    return this.adminService.getReconciliation();
+  }
+
   @Get('users')
   listUsers() {
     return this.adminService.listUsers();

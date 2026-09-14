@@ -1,8 +1,9 @@
-import { IsIn, IsInt, IsNumber, IsOptional, IsPositive, IsString, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsNumber, IsOptional, IsPositive, Max, Min } from 'class-validator';
+import { SUPPORTED_SYMBOLS } from '@dot-trader/shared-types';
 
 export class UpsertBotInstanceDto {
   @IsOptional()
-  @IsString()
+  @IsIn(SUPPORTED_SYMBOLS)
   symbol?: string = 'DOT/USDT';
 
   @IsOptional()

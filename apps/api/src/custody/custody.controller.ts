@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, AuthenticatedUser } from '../auth/decorators/current-user.decorator';
 import { CustodyService } from './custody.service';
@@ -20,6 +21,9 @@ export class CustodyController {
     return this.custodyService.listDepositsForUser(user.userId);
   }
 
+  // Limite basse : chaque appel verrouille des fonds réels et sert de point de départ à un
+  // mouvement d'argent hors plateforme — pas un endpoint à laisser spammable.
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('withdrawals')
   createWithdrawal(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateWithdrawalDto) {
     return this.custodyService.createWithdrawal(user.userId, dto);

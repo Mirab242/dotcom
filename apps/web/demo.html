@@ -561,6 +561,14 @@
         </div>
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h2 style="margin:0">Réconciliation — comptabilité interne vs solde Binance réel</h2>
+            <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="loadAdminReconciliation()">🔄 Vérifier</button>
+          </div>
+          <p style="color:var(--sub);font-size:12.5px;margin-bottom:14px">Si la somme des soldes utilisateurs ne correspond pas au vrai solde du compte Binance de la plateforme, c'est signalé ici — indispensable en mode custodial réel.</p>
+          <div id="adminReconciliationBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
             <h2 style="margin:0">Utilisateurs</h2>
             <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="loadAdminUsers()">🔄 Rafraîchir</button>
           </div>
@@ -630,6 +638,14 @@
 // (Render, puis le futur sous-domaine) → reste sur la même origine, aucun changement
 // à refaire si l'URL change.
 const API = (window.location.protocol === 'file:') ? 'https://dot-trader-api.onrender.com' : window.location.origin;
+// Toute chaîne venant de l'API (email, référence de dépôt, destination de retrait, symbole
+// de bot...) est écrite via innerHTML dans les tableaux admin — sans échappement, un
+// utilisateur pourrait y injecter du HTML/JS exécuté dans le navigateur de l'admin (vol de
+// session). echapper systématiquement avant toute interpolation dans un template innerHTML.
+function esc(str){
+  if(str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 let mode = 'login';
 let tokens = JSON.parse(localStorage.getItem('dt_tokens') || 'null');
 
@@ -924,7 +940,7 @@ async function loadWalletView(){
     const orders = await res.json();
     if(!orders.length){ histBox.innerHTML = '<div class="empty-state">Aucun ordre pour l\'instant.</div>'; return; }
     histBox.innerHTML = `<table class="dt-table"><thead><tr><th>Symbole</th><th>Sens</th><th>Qté</th><th>Prix moyen</th><th>Statut</th><th>Date</th></tr></thead><tbody>
-      ${orders.map(o=>`<tr><td>${o.symbol}</td><td><span class="tag-pill ${o.side==='buy'?'green':''}">${o.side==='buy'?'Achat':'Vente'}</span></td><td>${o.filledQty ?? o.qty}</td><td>${o.avgPrice ?? '—'}</td><td>${o.status}</td><td>${new Date(o.createdAt).toLocaleString('fr-FR')}</td></tr>`).join('')}
+      ${orders.map(o=>`<tr><td>${esc(o.symbol)}</td><td><span class="tag-pill ${o.side==='buy'?'green':''}">${o.side==='buy'?'Achat':'Vente'}</span></td><td>${o.filledQty ?? o.qty}</td><td>${o.avgPrice ?? '—'}</td><td>${esc(o.status)}</td><td>${new Date(o.createdAt).toLocaleString('fr-FR')}</td></tr>`).join('')}
     </tbody></table>`;
   }catch(e){
     histBox.innerHTML = '<div class="empty-state">Impossible de charger l\'historique.</div>';
@@ -1486,6 +1502,7 @@ function showMsgToast(text){
 }
 
 /* ---- Admin : vraie liste d'utilisateurs via l'API ---- */
+let adminUsersCache = {};
 async function adminApi(path, opts){
   const res = await fetch(API + path, { ...opts, headers:{ 'Content-Type':'application/json', Authorization: 'Bearer ' + tokens.accessToken, ...(opts&&opts.headers||{}) } });
   const data = await res.json().catch(()=>({}));
@@ -1515,23 +1532,25 @@ async function loadAdminUsers(){
   try{
     const users = await adminApi('/admin/users');
     if(!users.length){ box.innerHTML = '<div class="empty-state">Aucun utilisateur.</div>'; return; }
+    adminUsersCache = {};
+    users.forEach(u=>{ adminUsersCache[u.id] = u; });
     box.innerHTML = `<table class="dt-table"><thead><tr><th>Email</th><th>Rôle</th><th>Statut</th><th>Tier</th><th>Solde</th><th>Créé le</th><th></th></tr></thead><tbody>
       ${users.map(u=>{
         const balances = (u.wallets||[]).filter(w=>Number(w.availableBalance)>0||Number(w.lockedBalance)>0)
-          .map(w=>`${Number(w.availableBalance).toLocaleString('fr-FR')} ${w.currency}${Number(w.lockedBalance)>0?` (+${w.lockedBalance} verrouillé)`:''}`).join(' · ') || '—';
+          .map(w=>`${esc(Number(w.availableBalance).toLocaleString('fr-FR'))} ${esc(w.currency)}${Number(w.lockedBalance)>0?` (+${esc(w.lockedBalance)} verrouillé)`:''}`).join(' · ') || '—';
         return `<tr>
-        <td>${u.email}</td>
-        <td><span class="tag-pill ${u.role==='admin'?'green':''}">${u.role}</span></td>
-        <td><span class="tag-pill ${u.status==='active'?'green':''}">${u.status}</span></td>
-        <td><span class="tag-pill ${u.subscriptionTier==='pro'?'green':''}">${u.subscriptionTier}</span></td>
+        <td>${esc(u.email)}</td>
+        <td><span class="tag-pill ${u.role==='admin'?'green':''}">${esc(u.role)}</span></td>
+        <td><span class="tag-pill ${u.status==='active'?'green':''}">${esc(u.status)}</span></td>
+        <td><span class="tag-pill ${u.subscriptionTier==='pro'?'green':''}">${esc(u.subscriptionTier)}</span></td>
         <td style="font-size:11.5px">${balances}</td>
         <td>${new Date(u.createdAt).toLocaleDateString('fr-FR')}</td>
         <td style="display:flex;gap:5px;flex-wrap:wrap">
           <button class="btn btn-ghost" style="padding:4px 8px;font-size:10.5px" onclick="adminSetUserStatus('${u.id}','${u.status==='active'?'suspended':'active'}')">${u.status==='active'?'Suspendre':'Réactiver'}</button>
           <button class="btn btn-ghost" style="padding:4px 8px;font-size:10.5px" onclick="adminSetUserRole('${u.id}','${u.role==='admin'?'user':'admin'}')">${u.role==='admin'?'Rétrograder':'Promouvoir admin'}</button>
           <button class="btn btn-ghost" style="padding:4px 8px;font-size:10.5px" onclick="adminSetUserTier('${u.id}','${u.subscriptionTier==='pro'?'free':'pro'}')">${u.subscriptionTier==='pro'?'Repasser free':'Passer pro'}</button>
-          <button class="btn btn-ghost" style="padding:4px 8px;font-size:10.5px" onclick="adminAdjustWallet('${u.id}','${u.email}')">Créditer/Débiter</button>
-          <button class="btn btn-ghost" style="padding:4px 8px;font-size:10.5px;color:var(--red)" onclick="adminDeleteUser('${u.id}','${u.email}')">Supprimer</button>
+          <button class="btn btn-ghost" style="padding:4px 8px;font-size:10.5px" onclick="adminAdjustWallet('${u.id}')">Créditer/Débiter</button>
+          <button class="btn btn-ghost" style="padding:4px 8px;font-size:10.5px;color:var(--red)" onclick="adminDeleteUser('${u.id}')">Supprimer</button>
         </td>
       </tr>`;}).join('')}
     </tbody></table>`;
@@ -1551,7 +1570,8 @@ async function adminSetUserTier(id, subscriptionTier){
   try{ await adminApi('/admin/users/'+id+'/subscription', {method:'PATCH', body:JSON.stringify({subscriptionTier})}); showMsgToast('✅ Tier mis à jour'); loadAdminUsers(); }
   catch(e){ showMsgToast('❌ ' + e.message); }
 }
-async function adminAdjustWallet(id, email){
+async function adminAdjustWallet(id){
+  const email = (adminUsersCache[id] || {}).email || id;
   const currency = (prompt(`Devise à ajuster pour ${email} (USDT, DOT, BTC, ETH, SOL) :`, 'USDT') || '').toUpperCase().trim();
   if(!currency) return;
   const amountStr = prompt('Montant (positif) :', '0');
@@ -1566,7 +1586,8 @@ async function adminAdjustWallet(id, email){
     loadAdminUsers(); loadAdminStats();
   }catch(e){ showMsgToast('❌ ' + e.message); }
 }
-async function adminDeleteUser(id, email){
+async function adminDeleteUser(id){
+  const email = (adminUsersCache[id] || {}).email || id;
   if(!confirm(`Supprimer définitivement le compte ${email} ? Cette action est irréversible.`)) return;
   try{
     await adminApi('/admin/users/'+id, {method:'DELETE'});
@@ -1581,7 +1602,7 @@ async function loadAdminDeposits(){
     if(!deposits.length){ box.innerHTML = '<div class="empty-state">Aucun dépôt en attente.</div>'; return; }
     box.innerHTML = `<table class="dt-table"><thead><tr><th>Utilisateur</th><th>Devise</th><th>Montant</th><th>Référence</th><th>Date</th><th></th></tr></thead><tbody>
       ${deposits.map(d=>`<tr>
-        <td>${d.user.email}</td><td>${d.currency}</td><td>${d.amount}</td><td>${d.reference||'—'}</td><td>${new Date(d.createdAt).toLocaleString('fr-FR')}</td>
+        <td>${esc(d.user.email)}</td><td>${esc(d.currency)}</td><td>${d.amount}</td><td>${esc(d.reference)||'—'}</td><td>${new Date(d.createdAt).toLocaleString('fr-FR')}</td>
         <td style="display:flex;gap:5px"><button class="btn btn-primary" style="padding:4px 10px;font-size:10.5px" onclick="adminCreditDeposit('${d.id}')">Créditer</button><button class="btn btn-ghost" style="padding:4px 10px;font-size:10.5px" onclick="adminRejectDeposit('${d.id}')">Rejeter</button></td>
       </tr>`).join('')}
     </tbody></table>`;
@@ -1602,7 +1623,7 @@ async function loadAdminWithdrawals(){
     if(!withdrawals.length){ box.innerHTML = '<div class="empty-state">Aucun retrait en attente.</div>'; return; }
     box.innerHTML = `<table class="dt-table"><thead><tr><th>Utilisateur</th><th>Devise</th><th>Montant</th><th>Destination</th><th>Date</th><th></th></tr></thead><tbody>
       ${withdrawals.map(w=>`<tr>
-        <td>${w.user.email}</td><td>${w.currency}</td><td>${w.amount}</td><td>${w.destination}</td><td>${new Date(w.createdAt).toLocaleString('fr-FR')}</td>
+        <td>${esc(w.user.email)}</td><td>${esc(w.currency)}</td><td>${w.amount}</td><td>${esc(w.destination)}</td><td>${new Date(w.createdAt).toLocaleString('fr-FR')}</td>
         <td style="display:flex;gap:5px"><button class="btn btn-primary" style="padding:4px 10px;font-size:10.5px" onclick="adminApproveWithdrawal('${w.id}')">Approuver</button><button class="btn btn-ghost" style="padding:4px 10px;font-size:10.5px" onclick="adminRejectWithdrawal('${w.id}')">Rejeter</button></td>
       </tr>`).join('')}
     </tbody></table>`;
@@ -1623,8 +1644,8 @@ async function loadAdminBots(){
     if(!bots.length){ box.innerHTML = '<div class="empty-state">Aucun bot configuré.</div>'; return; }
     box.innerHTML = `<table class="dt-table"><thead><tr><th>Utilisateur</th><th>Symbole</th><th>Statut</th><th>Confiance min</th><th>Risque</th><th>Dernier trade</th></tr></thead><tbody>
       ${bots.map(b=>`<tr>
-        <td>${b.user.email}</td><td>${b.symbol}</td><td><span class="tag-pill ${b.enabled?'green':''}">${b.enabled?'actif':'inactif'}</span></td><td>${b.minConfidence}%</td><td>${b.riskPercent}%</td>
-        <td>${b.lastSignalAt ? new Date(b.lastSignalAt).toLocaleString('fr-FR') + ' ('+b.lastSignalSide+')' : '—'}</td>
+        <td>${esc(b.user.email)}</td><td>${esc(b.symbol)}</td><td><span class="tag-pill ${b.enabled?'green':''}">${b.enabled?'actif':'inactif'}</span></td><td>${b.minConfidence}%</td><td>${b.riskPercent}%</td>
+        <td>${b.lastSignalAt ? new Date(b.lastSignalAt).toLocaleString('fr-FR') + ' ('+esc(b.lastSignalSide)+')' : '—'}</td>
       </tr>`).join('')}
     </tbody></table>`;
   }catch(e){ box.innerHTML = '<div class="empty-state">' + e.message + '</div>'; }

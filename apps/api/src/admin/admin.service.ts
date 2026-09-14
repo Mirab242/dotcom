@@ -1,13 +1,18 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletService } from '../wallet/wallet.service';
+import { ExchangeService } from '../exchange/exchange.service';
 import { AdjustWalletDto } from './dto/adjust-wallet.dto';
+
+// Écart toléré avant d'être signalé — les frais d'exchange créent un léger écart normal.
+const RECONCILIATION_TOLERANCE_PCT = 0.5;
 
 @Injectable()
 export class AdminService {
   constructor(
     private prisma: PrismaService,
     private walletService: WalletService,
+    private exchangeService: ExchangeService,
   ) {}
 
   async getStats() {
@@ -156,5 +161,48 @@ export class AdminService {
     });
     await this.prisma.user.delete({ where: { id: userId } });
     return { deleted: true, userId };
+  }
+
+  /**
+   * Vérifie que la comptabilité interne (somme des wallets) correspond au solde réel du
+   * compte Binance de la plateforme — indispensable en mode custodial : si les deux
+   * divergent, soit un bug a fait apparaître/disparaître de l'argent virtuel, soit un
+   * mouvement réel (frais, retrait manuel...) n'a pas été reflété dans le ledger interne.
+   */
+  async getReconciliation() {
+    const mode = this.exchangeService.getActiveMode();
+    const [internalTotals, realBalances] = await Promise.all([
+      this.prisma.wallet.groupBy({
+        by: ['currency'],
+        _sum: { availableBalance: true, lockedBalance: true },
+      }),
+      this.exchangeService.getConnector().getBalance(),
+    ]);
+
+    const internalByCurrency = new Map(
+      internalTotals.map((w) => [
+        w.currency,
+        Number(w._sum.availableBalance ?? 0) + Number(w._sum.lockedBalance ?? 0),
+      ]),
+    );
+    const realByCurrency = new Map(realBalances.map((b) => [b.currency, b.total]));
+
+    const currencies = new Set([...internalByCurrency.keys(), ...realByCurrency.keys()]);
+    const rows = [...currencies].map((currency) => {
+      const internalTotal = internalByCurrency.get(currency) ?? 0;
+      const realTotal = realByCurrency.get(currency) ?? 0;
+      const discrepancy = realTotal - internalTotal;
+      const discrepancyPct = internalTotal > 0 ? (Math.abs(discrepancy) / internalTotal) * 100 : (realTotal > 0 ? 100 : 0);
+      return {
+        currency,
+        internalTotal,
+        realTotal,
+        discrepancy,
+        discrepancyPct,
+        flagged: discrepancyPct > RECONCILIATION_TOLERANCE_PCT,
+      };
+    });
+
+    return { mode, checkedAt: new Date().toISOString(), rows, anyFlagged: rows.some((r) => r.flagged) };
   }
 }

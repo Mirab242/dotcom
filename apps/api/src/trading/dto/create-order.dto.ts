@@ -1,8 +1,9 @@
-import { IsIn, IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsPositive } from 'class-validator';
+import { SUPPORTED_SYMBOLS } from '@dot-trader/shared-types';
 
 export class CreateOrderDto {
-  @IsString()
-  symbol: string; // "DOT/USDT"
+  @IsIn(SUPPORTED_SYMBOLS)
+  symbol: string;
 
   @IsIn(['buy', 'sell'])
   side: 'buy' | 'sell';
