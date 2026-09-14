@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { SUPPORTED_SYMBOLS } from '@dot-trader/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletService } from '../wallet/wallet.service';
 import { ExchangeService } from '../exchange/exchange.service';
@@ -6,6 +7,11 @@ import { AdjustWalletDto } from './dto/adjust-wallet.dto';
 
 // Écart toléré avant d'être signalé — les frais d'exchange créent un léger écart normal.
 const RECONCILIATION_TOLERANCE_PCT = 0.5;
+// Le compte Binance testnet est seedé par Binance avec plein d'autres actifs (BNB, TRX,
+// même des tokens de test factices) que la plateforme ne gère pas du tout — les inclure dans
+// la réconciliation noierait les vrais écarts sous du bruit. On ne regarde que les devises
+// que la plateforme trade ou détient réellement (bases des paires supportées + USDT).
+const RECONCILED_CURRENCIES = new Set(SUPPORTED_SYMBOLS.flatMap((s) => s.split('/')));
 
 @Injectable()
 export class AdminService {
@@ -193,7 +199,9 @@ export class AdminService {
     );
     const realByCurrency = new Map(realBalances.map((b) => [b.currency, b.total]));
 
-    const currencies = new Set([...internalByCurrency.keys(), ...realByCurrency.keys()]);
+    const currencies = new Set(
+      [...internalByCurrency.keys(), ...realByCurrency.keys()].filter((c) => RECONCILED_CURRENCIES.has(c)),
+    );
     const rows = [...currencies].map((currency) => {
       const internalTotal = internalByCurrency.get(currency) ?? 0;
       const realTotal = realByCurrency.get(currency) ?? 0;
@@ -209,6 +217,15 @@ export class AdminService {
       };
     });
 
-    return { mode, checkedAt: new Date().toISOString(), rows, anyFlagged: rows.some((r) => r.flagged) };
+    return {
+      mode,
+      checkedAt: new Date().toISOString(),
+      rows,
+      anyFlagged: rows.some((r) => r.flagged),
+      note:
+        mode === 'testnet'
+          ? "Mode testnet : Binance crédite gratuitement chaque compte testnet avec de la fausse monnaie de départ (souvent des milliers de USDT/DOT) — un écart important ici est normal et attendu, pas un bug. La réconciliation ne devient un vrai signal fiable qu'en mode live, avec de l'argent réel."
+          : null,
+    };
   }
 }

@@ -1291,7 +1291,7 @@ function showView(name){
     document.getElementById(NAV_IDS[v]).classList.toggle('active', v===name);
   });
   if(name==='trading'){ setTimeout(loadRealCandles, 30); loadPositions(); loadOpenOrders(); }
-  if(name==='admin'){ loadAdminStats(); loadAdminUsers(); loadAdminDeposits(); loadAdminWithdrawals(); loadAdminBots(); loadAdminAuditLogs(); loadKillSwitch(); loadRiskLimits(); loadRiskStatus(); }
+  if(name==='admin'){ loadAdminStats(); loadAdminReconciliation(); loadAdminUsers(); loadAdminDeposits(); loadAdminWithdrawals(); loadAdminBots(); loadAdminAuditLogs(); loadKillSwitch(); loadRiskLimits(); loadRiskStatus(); }
   if(name==='portefeuille') loadWalletView();
   if(name==='dashboard') loadDashboardStats();
   if(name==='bot'){ loadSignal(); loadBotSettings(); }
@@ -1522,6 +1522,31 @@ async function loadAdminStats(){
       <div class="stat"><div class="label">Dépôts/retraits en attente</div><div class="value">${s.pendingDeposits} / ${s.pendingWithdrawals}</div></div>
       <div class="stat"><div class="label">Commissions perçues</div><div class="value green">${s.totalCommissionsEarned.toFixed(4)} USDT</div></div>
     `;
+  }catch(e){
+    box.innerHTML = '<div class="empty-state">' + e.message + '</div>';
+  }
+}
+async function loadAdminReconciliation(){
+  const box = document.getElementById('adminReconciliationBox');
+  box.innerHTML = '<div class="empty-state">Vérification en cours…</div>';
+  try{
+    const r = await adminApi('/admin/reconciliation');
+    const rows = r.rows.filter(x=>x.internalTotal>0||x.realTotal>0);
+    let html = '';
+    if(r.note) html += `<p style="color:var(--gold);font-size:12px;margin-bottom:14px">⚠️ ${esc(r.note)}</p>`;
+    if(!rows.length){
+      html += '<div class="empty-state">Aucun solde à réconcilier pour l\'instant.</div>';
+    } else {
+      html += `<table class="dt-table"><thead><tr><th>Devise</th><th>Interne (somme wallets)</th><th>Réel (Binance)</th><th>Écart</th></tr></thead><tbody>
+        ${rows.map(x=>`<tr>
+          <td>${esc(x.currency)}</td>
+          <td>${x.internalTotal.toLocaleString('fr-FR',{maximumFractionDigits:6})}</td>
+          <td>${x.realTotal.toLocaleString('fr-FR',{maximumFractionDigits:6})}</td>
+          <td style="color:${x.flagged?'var(--red)':'var(--green)'}">${x.discrepancy>=0?'+':''}${x.discrepancy.toLocaleString('fr-FR',{maximumFractionDigits:6})} (${x.discrepancyPct.toFixed(2)}%) ${x.flagged?'⚠️':'✅'}</td>
+        </tr>`).join('')}
+      </tbody></table>`;
+    }
+    box.innerHTML = html;
   }catch(e){
     box.innerHTML = '<div class="empty-state">' + e.message + '</div>';
   }
