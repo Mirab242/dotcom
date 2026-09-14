@@ -44,7 +44,13 @@ export class AuthService {
         referredByCode: dto.referralCode ?? null,
       },
     });
-    await this.walletService.seedInitialBalance(user.id);
+    // Le crédit de départ fictif (1000 USDT) n'a de sens qu'en testnet — en mode live, un
+    // nouveau compte doit obligatoirement partir à zéro et passer par un vrai dépôt
+    // (validé par un admin, §4.6bis), sinon n'importe qui pourrait trader avec le capital
+    // réel de la plateforme sans jamais avoir rien déposé.
+    if (this.config.get<string>('LIVE_TRADING_ENABLED') !== 'true') {
+      await this.walletService.seedInitialBalance(user.id);
+    }
 
     return this.issueTokens(user.id, user.email, user.role);
   }

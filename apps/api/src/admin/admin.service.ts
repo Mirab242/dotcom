@@ -1,9 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { WalletService } from '../wallet/wallet.service';
+import { AdjustWalletDto } from './dto/adjust-wallet.dto';
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private walletService: WalletService,
+  ) {}
 
   async getStats() {
     const [
@@ -61,7 +66,10 @@ export class AdminService {
   }
 
   async listUsers() {
-    const users = await this.prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
+    const users = await this.prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { wallets: { select: { currency: true, availableBalance: true, lockedBalance: true } } },
+    });
     return users.map(({ passwordHash, twoFaSecret, ...safe }) => safe);
   }
 
@@ -99,5 +107,54 @@ export class AdminService {
     });
     const { passwordHash, twoFaSecret, ...safe } = user;
     return safe;
+  }
+
+  /**
+   * Crédit/débit manuel du wallet interne — sert par exemple à créditer un dépôt reçu
+   * hors-ligne sans passer par le flux de demande utilisateur (§4.6bis), ou à corriger
+   * une erreur. Chaque mouvement est tracé avec son motif dans le journal d'audit.
+   */
+  async adjustWallet(adminId: string, userId: string, dto: AdjustWalletDto) {
+    await this.assertUserExists(userId);
+
+    if (dto.direction === 'credit') {
+      await this.walletService.credit(userId, dto.currency, dto.amount, 'admin_adjustment', adminId);
+    } else {
+      await this.walletService.debit(userId, dto.currency, dto.amount, 'admin_adjustment', adminId);
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: adminId,
+        action: `wallet.${dto.direction}`,
+        target: userId,
+        metadata: JSON.stringify({ currency: dto.currency, amount: dto.amount, reason: dto.reason }),
+      },
+    });
+
+    return this.walletService.listWallets(userId);
+  }
+
+  /**
+   * Suppression définitive d'un compte. Refuse si le wallet n'est pas à zéro — un solde
+   * (surtout en mode live, §8) ne doit jamais disparaître silencieusement avec le compte ;
+   * l'admin doit d'abord le vider (retrait) avant de pouvoir supprimer.
+   */
+  async deleteUser(adminId: string, userId: string) {
+    await this.assertUserExists(userId);
+
+    const wallets = await this.walletService.listWallets(userId);
+    const hasBalance = wallets.some((w) => Number(w.availableBalance) > 0 || Number(w.lockedBalance) > 0);
+    if (hasBalance) {
+      throw new BadRequestException(
+        'Impossible de supprimer un compte dont le wallet n\'est pas à zéro — videz-le (retrait) avant de supprimer.',
+      );
+    }
+
+    await this.prisma.auditLog.create({
+      data: { actorId: adminId, action: 'user.deleted', target: userId },
+    });
+    await this.prisma.user.delete({ where: { id: userId } });
+    return { deleted: true, userId };
   }
 }

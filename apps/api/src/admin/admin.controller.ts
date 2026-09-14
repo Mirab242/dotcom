@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Role } from '@dot-trader/shared-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -9,6 +9,7 @@ import { AdminService } from './admin.service';
 import { SetUserStatusDto } from './dto/set-user-status.dto';
 import { SetUserRoleDto } from './dto/set-user-role.dto';
 import { SetUserSubscriptionDto } from './dto/set-user-subscription.dto';
+import { AdjustWalletDto } from './dto/adjust-wallet.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -56,6 +57,16 @@ export class AdminController {
     @Body() dto: SetUserSubscriptionDto,
   ) {
     return this.adminService.setUserSubscription(admin.userId, id, dto.subscriptionTier);
+  }
+
+  @Post('users/:id/wallet-adjustment')
+  adjustWallet(@CurrentUser() admin: AuthenticatedUser, @Param('id') id: string, @Body() dto: AdjustWalletDto) {
+    return this.adminService.adjustWallet(admin.userId, id, dto);
+  }
+
+  @Delete('users/:id')
+  deleteUser(@CurrentUser() admin: AuthenticatedUser, @Param('id') id: string) {
+    return this.adminService.deleteUser(admin.userId, id);
   }
 
   @Get('deposits')

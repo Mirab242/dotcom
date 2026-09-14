@@ -1515,20 +1515,25 @@ async function loadAdminUsers(){
   try{
     const users = await adminApi('/admin/users');
     if(!users.length){ box.innerHTML = '<div class="empty-state">Aucun utilisateur.</div>'; return; }
-    box.innerHTML = `<table class="dt-table"><thead><tr><th>Email</th><th>Rôle</th><th>Statut</th><th>Tier</th><th>Parrainage</th><th>Créé le</th><th></th></tr></thead><tbody>
-      ${users.map(u=>`<tr>
+    box.innerHTML = `<table class="dt-table"><thead><tr><th>Email</th><th>Rôle</th><th>Statut</th><th>Tier</th><th>Solde</th><th>Créé le</th><th></th></tr></thead><tbody>
+      ${users.map(u=>{
+        const balances = (u.wallets||[]).filter(w=>Number(w.availableBalance)>0||Number(w.lockedBalance)>0)
+          .map(w=>`${Number(w.availableBalance).toLocaleString('fr-FR')} ${w.currency}${Number(w.lockedBalance)>0?` (+${w.lockedBalance} verrouillé)`:''}`).join(' · ') || '—';
+        return `<tr>
         <td>${u.email}</td>
         <td><span class="tag-pill ${u.role==='admin'?'green':''}">${u.role}</span></td>
         <td><span class="tag-pill ${u.status==='active'?'green':''}">${u.status}</span></td>
         <td><span class="tag-pill ${u.subscriptionTier==='pro'?'green':''}">${u.subscriptionTier}</span></td>
-        <td style="font-family:'SF Mono',Consolas,monospace;font-size:11px">${u.referralCode}${u.referredByCode?' · via '+u.referredByCode:''}</td>
+        <td style="font-size:11.5px">${balances}</td>
         <td>${new Date(u.createdAt).toLocaleDateString('fr-FR')}</td>
         <td style="display:flex;gap:5px;flex-wrap:wrap">
           <button class="btn btn-ghost" style="padding:4px 8px;font-size:10.5px" onclick="adminSetUserStatus('${u.id}','${u.status==='active'?'suspended':'active'}')">${u.status==='active'?'Suspendre':'Réactiver'}</button>
           <button class="btn btn-ghost" style="padding:4px 8px;font-size:10.5px" onclick="adminSetUserRole('${u.id}','${u.role==='admin'?'user':'admin'}')">${u.role==='admin'?'Rétrograder':'Promouvoir admin'}</button>
           <button class="btn btn-ghost" style="padding:4px 8px;font-size:10.5px" onclick="adminSetUserTier('${u.id}','${u.subscriptionTier==='pro'?'free':'pro'}')">${u.subscriptionTier==='pro'?'Repasser free':'Passer pro'}</button>
+          <button class="btn btn-ghost" style="padding:4px 8px;font-size:10.5px" onclick="adminAdjustWallet('${u.id}','${u.email}')">Créditer/Débiter</button>
+          <button class="btn btn-ghost" style="padding:4px 8px;font-size:10.5px;color:var(--red)" onclick="adminDeleteUser('${u.id}','${u.email}')">Supprimer</button>
         </td>
-      </tr>`).join('')}
+      </tr>`;}).join('')}
     </tbody></table>`;
   }catch(e){
     box.innerHTML = '<div class="empty-state">' + e.message + '</div>';
@@ -1545,6 +1550,29 @@ async function adminSetUserRole(id, role){
 async function adminSetUserTier(id, subscriptionTier){
   try{ await adminApi('/admin/users/'+id+'/subscription', {method:'PATCH', body:JSON.stringify({subscriptionTier})}); showMsgToast('✅ Tier mis à jour'); loadAdminUsers(); }
   catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function adminAdjustWallet(id, email){
+  const currency = (prompt(`Devise à ajuster pour ${email} (USDT, DOT, BTC, ETH, SOL) :`, 'USDT') || '').toUpperCase().trim();
+  if(!currency) return;
+  const amountStr = prompt('Montant (positif) :', '0');
+  const amount = parseFloat(amountStr);
+  if(!amount || amount <= 0){ showMsgToast('⚠️ Montant invalide'); return; }
+  const direction = confirm('OK = Créditer · Annuler = Débiter') ? 'credit' : 'debit';
+  const reason = prompt('Motif (obligatoire, tracé dans le journal d\'audit) :', '') || '';
+  if(!reason.trim()){ showMsgToast('⚠️ Motif obligatoire'); return; }
+  try{
+    await adminApi('/admin/users/'+id+'/wallet-adjustment', {method:'POST', body:JSON.stringify({currency, amount, direction, reason})});
+    showMsgToast(`✅ ${direction==='credit'?'Crédité':'Débité'} ${amount} ${currency} pour ${email}`);
+    loadAdminUsers(); loadAdminStats();
+  }catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function adminDeleteUser(id, email){
+  if(!confirm(`Supprimer définitivement le compte ${email} ? Cette action est irréversible.`)) return;
+  try{
+    await adminApi('/admin/users/'+id, {method:'DELETE'});
+    showMsgToast('✅ Compte supprimé');
+    loadAdminUsers(); loadAdminStats();
+  }catch(e){ showMsgToast('❌ ' + e.message); }
 }
 async function loadAdminDeposits(){
   const box = document.getElementById('adminDepositsBox');
