@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: dot-trader-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm run build:render
+    startCommand: npm run start:render
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        fromDatabase:
+          name: dot-trader-db
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      # Clés Binance testnet — jamais commitées, à renseigner manuellement dans le
+      # dashboard Render (Environment) après le premier déploiement.
+      - key: BINANCE_TESTNET_API_KEY
+        sync: false
+      - key: BINANCE_TESTNET_API_SECRET
+        sync: false
+      # Garde-fou : reste "false" tant que le sujet du §8 (cadre légal) n'a pas été
+      # tranché — voir docs/ARCHITECTURE.md. Ne jamais mettre "true" sans compte
+      # exchange "live" configuré (ExchangeService refuse de démarrer sinon).
+      - key: LIVE_TRADING_ENABLED
+        value: 'false'
+
+databases:
+  - name: dot-trader-db
+    plan: free
+    region: frankfurt

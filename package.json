@@ -11,7 +11,9 @@
     "api:build": "npm run build --workspace=apps/api",
     "api:test": "npm run test --workspace=apps/api",
     "prisma:generate": "npm run prisma:generate --workspace=apps/api",
-    "prisma:migrate": "npm run prisma:migrate --workspace=apps/api"
+    "prisma:migrate": "npm run prisma:migrate --workspace=apps/api",
+    "build:render": "npm install && npm run build --workspace=packages/shared-types && npm run build --workspace=packages/exchange-connectors && npm run build --workspace=packages/trading-engine && npm run build --workspace=packages/risk-engine && npx prisma generate --schema apps/api/prisma/schema.prisma && npx tsc -p apps/api/tsconfig.json && npx prisma migrate deploy --schema apps/api/prisma/schema.prisma",
+    "start:render": "node apps/api/dist/main.js"
   },
   "engines": {
     "node": ">=20"

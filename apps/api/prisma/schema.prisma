@@ -1,14 +1,13 @@
-// Phase 0 : SQLite en local pour démarrer sans dépendance externe (pas de Docker requis).
-// Avant la mise en production réelle : changer provider = "postgresql" + DATABASE_URL,
-// puis régénérer les migrations. Le schéma reste volontairement compatible Postgres
-// (pas de fonctionnalité spécifique SQLite utilisée).
+// Passage en PostgreSQL pour le déploiement (Render) — SQLite ne persiste pas sur un
+// hébergement cloud à filesystem éphémère. Le développement local repasse aussi par
+// une vraie base Postgres à partir d'ici (DATABASE_URL dans apps/api/.env).
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
