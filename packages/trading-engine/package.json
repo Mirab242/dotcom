@@ -1,0 +1,21 @@
+{
+  "name": "@dot-trader/trading-engine",
+  "version": "0.0.1",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@dot-trader/shared-types": "*",
+    "technicalindicators": "^3.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "@types/jest": "^29.5.12"
+  }
+}

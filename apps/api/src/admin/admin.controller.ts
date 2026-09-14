@@ -1,0 +1,90 @@
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Role } from '@dot-trader/shared-types';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser, AuthenticatedUser } from '../auth/decorators/current-user.decorator';
+import { CustodyService } from '../custody/custody.service';
+import { AdminService } from './admin.service';
+import { SetUserStatusDto } from './dto/set-user-status.dto';
+import { SetUserRoleDto } from './dto/set-user-role.dto';
+import { SetUserSubscriptionDto } from './dto/set-user-subscription.dto';
+
+@Controller('admin')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.ADMIN)
+export class AdminController {
+  constructor(
+    private adminService: AdminService,
+    private custodyService: CustodyService,
+  ) {}
+
+  @Get('stats')
+  getStats() {
+    return this.adminService.getStats();
+  }
+
+  @Get('audit-logs')
+  listAuditLogs(@Query('limit') limit?: string) {
+    return this.adminService.listAuditLogs(limit ? Number(limit) : undefined);
+  }
+
+  @Get('bots')
+  listBots() {
+    return this.adminService.listAllBots();
+  }
+
+  @Get('users')
+  listUsers() {
+    return this.adminService.listUsers();
+  }
+
+  @Patch('users/:id/status')
+  setUserStatus(@CurrentUser() admin: AuthenticatedUser, @Param('id') id: string, @Body() dto: SetUserStatusDto) {
+    return this.adminService.setUserStatus(admin.userId, id, dto.status);
+  }
+
+  @Patch('users/:id/role')
+  setUserRole(@CurrentUser() admin: AuthenticatedUser, @Param('id') id: string, @Body() dto: SetUserRoleDto) {
+    return this.adminService.setUserRole(admin.userId, id, dto.role);
+  }
+
+  @Patch('users/:id/subscription')
+  setUserSubscription(
+    @CurrentUser() admin: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: SetUserSubscriptionDto,
+  ) {
+    return this.adminService.setUserSubscription(admin.userId, id, dto.subscriptionTier);
+  }
+
+  @Get('deposits')
+  listDeposits(@Query('status') status?: string) {
+    return this.custodyService.listAllDeposits(status);
+  }
+
+  @Post('deposits/:id/credit')
+  creditDeposit(@CurrentUser() admin: AuthenticatedUser, @Param('id') id: string) {
+    return this.custodyService.creditDeposit(admin.userId, id);
+  }
+
+  @Post('deposits/:id/reject')
+  rejectDeposit(@CurrentUser() admin: AuthenticatedUser, @Param('id') id: string) {
+    return this.custodyService.rejectDeposit(admin.userId, id);
+  }
+
+  @Get('withdrawals')
+  listWithdrawals(@Query('status') status?: string) {
+    return this.custodyService.listAllWithdrawals(status);
+  }
+
+  @Post('withdrawals/:id/approve')
+  approveWithdrawal(@CurrentUser() admin: AuthenticatedUser, @Param('id') id: string) {
+    return this.custodyService.approveWithdrawal(admin.userId, id);
+  }
+
+  @Post('withdrawals/:id/reject')
+  rejectWithdrawal(@CurrentUser() admin: AuthenticatedUser, @Param('id') id: string) {
+    return this.custodyService.rejectWithdrawal(admin.userId, id);
+  }
+}

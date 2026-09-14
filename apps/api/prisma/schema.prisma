@@ -1,0 +1,268 @@
+// Phase 0 : SQLite en local pour démarrer sans dépendance externe (pas de Docker requis).
+// Avant la mise en production réelle : changer provider = "postgresql" + DATABASE_URL,
+// puis régénérer les migrations. Le schéma reste volontairement compatible Postgres
+// (pas de fonctionnalité spécifique SQLite utilisée).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  role          String   @default("user") // "user" | "admin" — voir enum Role dans @dot-trader/shared-types
+  status        String   @default("active") // active | suspended
+  twoFaSecret   String? // rempli seulement après activation du 2FA
+  twoFaEnabled  Boolean  @default(false)
+  // Monétisation (§4.10) — pas de processeur de paiement tant que le cadre légal n'est pas
+  // tranché (§8) : le tier est assigné manuellement par un admin, mais il gate réellement des
+  // fonctionnalités (mode automatique, plafond de risque) — ce n'est pas un simple badge cosmétique.
+  subscriptionTier String  @default("free") // "free" | "pro"
+  referralCode     String  @unique
+  referredByCode   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  wallets       Wallet[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+  orders        Order[]
+  botInstances  BotInstance[]
+  positions     Position[]
+  deposits      Deposit[]
+  withdrawals   Withdrawal[]
+
+  @@map("users")
+}
+
+// Le stop-loss/take-profit stockés sur Order (mode assisted/auto) ne servaient jusqu'ici
+// qu'à calculer la taille de position — rien ne surveillait le marché après l'entrée.
+// Position rend ça réel : un job planifié (PositionService) ferme automatiquement au marché
+// dès que le SL ou le TP est touché. Spot uniquement pour l'instant → positions "long" seulement
+// (une vente signal reste un ordre spot immédiat, pas l'ouverture d'un short).
+model Position {
+  id                  String    @id @default(uuid())
+  userId              String
+  symbol              String
+  side                String    @default("long")
+  qty                 Decimal
+  entryPrice          Decimal
+  stopLoss            Decimal // stop-loss courant — déplacé par le break-even/trailing (§4.5)
+  initialStopLoss     Decimal // stop-loss d'origine, immuable — sert de référence pour le calcul 1R
+  takeProfit          Decimal?
+  breakEvenActivated  Boolean   @default(false)
+  entryOrderId        String
+  exitOrderId         String?
+  exitPrice           Decimal?
+  realizedPnl         Decimal?
+  commissionCharged   Decimal? // commission plateforme prélevée sur les trades gagnants (§4.10, tier "free")
+  status              String    @default("open") // open | closed
+  exitReason          String? // sl | tp | manual
+  openedAt            DateTime  @default(now())
+  closedAt            DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("positions")
+}
+
+// Mode automatique (§4.4/§4.8) : consomme les mêmes signaux que le mode assisté
+// (trading-engine, sans logique dupliquée) et exécute sans validation humaine, via
+// un job planifié (BotService) — toujours derrière le kill switch et les limites de risque.
+model BotInstance {
+  id              String    @id @default(uuid())
+  userId          String
+  symbol          String    @default("DOT/USDT")
+  timeframe       String    @default("15m")
+  higherTimeframe String    @default("4h")
+  minConfidence   Int       @default(70)
+  riskPercent     Decimal   @default(1)
+  enabled         Boolean   @default(false)
+  lastRunAt       DateTime?
+  lastSignalAt    DateTime?
+  lastSignalSide  String?
+  lastError       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, symbol])
+  @@map("bot_instances")
+}
+
+// Refresh tokens stockés hashés, révocables individuellement (logout, rotation).
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// Comptes exchange DE LA PLATEFORME (custodial) — jamais de clé appartenant à un utilisateur.
+model PlatformExchangeAccount {
+  id                 String   @id @default(uuid())
+  exchange           String // "binance"
+  apiKeyEncrypted    String
+  apiSecretEncrypted String
+  mode               String // "testnet" | "live"
+  status             String   @default("active")
+  createdAt          DateTime @default(now())
+
+  @@map("platform_exchange_accounts")
+}
+
+// Ledger interne : solde par utilisateur et par devise. Source de vérité produit.
+model Wallet {
+  id               String   @id @default(uuid())
+  userId           String
+  currency         String
+  availableBalance Decimal  @default(0)
+  lockedBalance    Decimal  @default(0)
+  updatedAt        DateTime @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledgerEntries  LedgerEntry[]
+
+  @@unique([userId, currency])
+  @@map("wallets")
+}
+
+model Deposit {
+  id                String    @id @default(uuid())
+  userId            String
+  currency          String
+  network           String?
+  amount            Decimal
+  method            String // "manual" | "onchain"
+  reference         String? // ex: référence mobile money, memo, ou tx hash provisoire
+  status            String    @default("pending") // pending | credited | rejected
+  creditedByAdminId String?
+  txHash            String?
+  createdAt         DateTime  @default(now())
+  creditedAt        DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("deposits")
+}
+
+model Withdrawal {
+  id               String    @id @default(uuid())
+  userId           String
+  currency         String
+  amount           Decimal
+  destination      String
+  status           String    @default("pending") // pending | approved | sent | rejected
+  approvedByAdminId String?
+  txHash           String?
+  createdAt        DateTime  @default(now())
+  processedAt      DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("withdrawals")
+}
+
+// Traçabilité comptable de tout mouvement de wallet (dépôt, retrait, pnl, frais, ajustement admin).
+model LedgerEntry {
+  id        String   @id @default(uuid())
+  walletId  String
+  type      String // deposit | withdrawal | trade_pnl | fee | adjustment
+  amount    Decimal // signé : positif = crédit, négatif = débit
+  refId     String? // id de l'entité source (deposit.id, trade.id, ...)
+  refTable  String?
+  createdAt DateTime @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@map("ledger_entries")
+}
+
+// Stockage historique des bougies. En Phase 0/1, alimenté à la volée à chaque appel
+// /market/candles (upsert) — pas encore de job d'ingestion continue. Sert de base au
+// backtesting (Phase 2) pour ne pas dépendre uniquement de l'historique exchange.
+model Candle {
+  id        String   @id @default(uuid())
+  symbol    String
+  timeframe String
+  ts        Int // epoch en secondes (évite BigInt, largement suffisant jusqu'en 2100+)
+  open      Decimal
+  high      Decimal
+  low       Decimal
+  close     Decimal
+  volume    Decimal
+  createdAt DateTime @default(now())
+
+  @@unique([symbol, timeframe, ts])
+  @@map("candles")
+}
+
+// Ordre passé par un utilisateur, exécuté sur le compte Binance testnet DE LA PLATEFORME
+// (PlatformExchangeAccount). Phase 1 : exécution réelle en testnet, sans débit du wallet
+// interne pour l'instant (viendra avec le custody complet — voir §4.6bis de l'architecture).
+model Order {
+  id              String    @id @default(uuid())
+  userId          String
+  symbol          String // "DOT/USDT"
+  side            String // "buy" | "sell"
+  type            String // "market" | "limit"
+  qty             Decimal
+  price           Decimal? // prix limite demandé, null si market
+  mode            String    @default("manual") // manual | assisted | auto
+  stopLoss        Decimal? // obligatoire pour les ordres passés via un signal (mode assisted)
+  takeProfit      Decimal?
+  riskPercent     Decimal? // % du capital risqué, utilisé pour calculer qty côté serveur (mode assisted)
+  equityAfter     Decimal? // équité du compte (USDT + valeur DOT) juste après règlement — sert au calcul de drawdown/perte journalière
+  exchangeOrderId String?
+  exchangeStatus  String?
+  filledQty       Decimal?
+  avgPrice        Decimal?
+  status          String    @default("pending") // pending | filled | failed | cancelled
+  errorMessage    String?
+  createdAt       DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("orders")
+}
+
+// Ligne singleton (id fixe "global") — réglages plateforme, notamment le kill switch (§4.5).
+model SystemSetting {
+  id                   String   @id @default("global")
+  killSwitchEnabled    Boolean  @default(false)
+  killSwitchReason     String?
+  // Limites de risque appliquées à chaque compte (§4.5) — au-delà, le Risk Engine
+  // bloque tout nouvel ordre pour l'utilisateur concerné (pas besoin d'activer le kill switch global).
+  maxDailyLossPercent  Decimal  @default(5)
+  maxDrawdownPercent   Decimal  @default(20)
+  updatedAt            DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  action     String
+  target     String?
+  metadata   String? // JSON sérialisé (SQLite n'a pas de type Json natif comme Postgres)
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}

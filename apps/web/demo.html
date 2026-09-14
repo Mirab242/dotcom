@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DOT Trader</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cdefs%3E%3ClinearGradient id='lg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%235b8def'/%3E%3Cstop offset='100%25' stop-color='%238e6bef'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='40' height='40' rx='10' fill='url(%23lg)'/%3E%3Cline x1='12' y1='14' x2='12' y2='10' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3Crect x='9' y='14' width='6' height='10' rx='1.5' fill='%23fff'/%3E%3Cline x1='12' y1='24' x2='12' y2='28' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='20' y1='9' x2='20' y2='6' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3Crect x='17' y='9' width='6' height='14' rx='1.5' fill='%23fff'/%3E%3Cline x1='20' y1='23' x2='20' y2='27' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='28' y1='6' x2='28' y2='4' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3Crect x='25' y='6' width='6' height='18' rx='1.5' fill='%23fff'/%3E%3Cline x1='28' y1='24' x2='28' y2='30' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0a0d12; --surf:#12151d; --surf2:#181c27; --surf3:#20263380; --border:#232838;
+    --text:#eef0f4; --sub:#8b93a7; --green:#26d99a; --red:#ef5350; --accent:#5b8def; --accent2:#8e6bef; --gold:#e0b73d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',sans-serif;min-height:100vh;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;cursor:pointer}
+  .hidden{display:none !important}
+  code{font-family:'SF Mono',Consolas,monospace}
+
+  /* ============ NAV ============ */
+  nav.topnav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:16px 40px;background:rgba(10,13,18,.75);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+  .logo{font-weight:800;font-size:19px;letter-spacing:.02em;display:flex;align-items:center;gap:8px}
+  .logo .dotmark{width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 12px var(--accent)}
+  .navlinks{display:flex;gap:30px;font-size:13.5px;color:var(--sub);font-weight:600}
+  @media(max-width:820px){.navlinks{display:none}}
+  .navlinks a:hover{color:var(--text)}
+  .actions{display:flex;gap:10px;align-items:center}
+  .btn{padding:10px 20px;border-radius:9px;border:none;font-weight:700;font-size:13.5px;transition:all .18s}
+  .btn-ghost{background:transparent;border:1.5px solid var(--border);color:var(--text)}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 4px 20px rgba(91,141,239,.35)}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 26px rgba(91,141,239,.5)}
+
+  /* ============ TICKER ============ */
+  .ticker-wrap{background:var(--surf);border-bottom:1px solid var(--border);overflow:hidden;white-space:nowrap;padding:9px 0}
+  .ticker{display:inline-flex;animation:ticker-scroll 28s linear infinite}
+  .ticker-wrap:hover .ticker{animation-play-state:paused}
+  @keyframes ticker-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .tick{display:inline-flex;align-items:center;gap:8px;padding:0 26px;font-size:12.5px;font-weight:700;font-family:'SF Mono',Consolas,monospace}
+  .tick .sym{color:var(--text)}
+  .tick .chg{font-weight:800}
+  .tick .chg.up{color:var(--green)}
+  .tick .chg.down{color:var(--red)}
+
+  /* ============ HERO ============ */
+  .glow{position:absolute;border-radius:50%;filter:blur(90px);opacity:.35;pointer-events:none;z-index:0}
+  .hero-wrap{position:relative;overflow:hidden}
+  .glow1{width:480px;height:480px;background:var(--accent);top:-160px;left:-100px;animation:float1 12s ease-in-out infinite}
+  .glow2{width:420px;height:420px;background:var(--accent2);top:60px;right:-140px;animation:float2 14s ease-in-out infinite}
+  @keyframes float1{0%,100%{transform:translate(0,0)}50%{transform:translate(40px,50px)}}
+  @keyframes float2{0%,100%{transform:translate(0,0)}50%{transform:translate(-30px,-40px)}}
+
+  .hero{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:80px 32px 40px;display:grid;grid-template-columns:1.05fr .95fr;gap:50px;align-items:center}
+  @media(max-width:960px){.hero{grid-template-columns:1fr;padding-top:50px}}
+  .tag{display:inline-flex;align-items:center;gap:8px;background:var(--surf2);border:1px solid var(--border);color:var(--gold);font-size:12px;font-weight:700;padding:7px 16px;border-radius:20px;margin-bottom:22px}
+  .tag .pulse{width:7px;height:7px;border-radius:50%;background:var(--gold);animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(224,183,61,.5)}50%{opacity:.6;box-shadow:0 0 0 6px rgba(224,183,61,0)}}
+  .hero h1{font-size:46px;font-weight:800;line-height:1.14;margin-bottom:18px;letter-spacing:-.01em}
+  .hero h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  @media(max-width:960px){.hero h1{font-size:34px}}
+  .hero p{color:var(--sub);font-size:16px;line-height:1.65;max-width:520px;margin-bottom:30px}
+  .ctas{display:flex;gap:12px;margin-bottom:40px}
+  .stats-row{display:flex;gap:36px}
+  .stat-mini .num{font-size:24px;font-weight:800;font-family:'SF Mono',Consolas,monospace}
+  .stat-mini .lbl{color:var(--sub);font-size:12px;margin-top:2px}
+
+  /* trading terminal mock */
+  .terminal{background:var(--surf);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+  .terminal .tbar{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
+  .tbar .pair{font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px}
+  .tbar .price{font-family:'SF Mono',Consolas,monospace;font-weight:800;color:var(--green);font-size:14px}
+  .tbar .dots span{display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:5px}
+  canvas#chart{display:block;width:100%;height:230px}
+  .terminal .orderbar{display:flex;justify-content:space-between;padding:14px 18px;border-top:1px solid var(--border);font-size:11.5px;font-family:'SF Mono',Consolas,monospace}
+  .orderbar .buy{color:var(--green)}
+  .orderbar .sell{color:var(--red)}
+  .sig-badge{position:absolute;background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:11.5px;box-shadow:0 10px 30px rgba(0,0,0,.4);animation:floatbadge 4s ease-in-out infinite}
+  @keyframes floatbadge{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  .sig-badge b{color:var(--green)}
+
+  /* ============ SECTIONS ============ */
+  section{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:70px 32px}
+  .sec-head{text-align:center;max-width:560px;margin:0 auto 44px}
+  .sec-head .tag{margin-bottom:14px}
+  .sec-head h2{font-size:30px;font-weight:800;margin-bottom:12px;letter-spacing:-.01em}
+  .sec-head p{color:var(--sub);font-size:15px;line-height:1.6}
+
+  .features{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  @media(max-width:900px){.features{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.features{grid-template-columns:1fr}}
+  .feature{background:var(--surf);border:1px solid var(--border);border-radius:14px;padding:24px;transition:all .25s;opacity:0;transform:translateY(18px)}
+  .feature.in{opacity:1;transform:translateY(0)}
+  .feature:hover{border-color:var(--accent);transform:translateY(-4px)}
+  .feature .ico{width:40px;height:40px;border-radius:10px;background:var(--surf2);display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:14px}
+  .feature h3{font-size:14.5px;margin-bottom:6px}
+  .feature p{color:var(--sub);font-size:12.5px;line-height:1.55}
+
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  @media(max-width:800px){.steps{grid-template-columns:1fr}}
+  .step{background:var(--surf);border:1px solid var(--border);border-radius:14px;padding:26px;position:relative;opacity:0;transform:translateY(18px);transition:all .25s}
+  .step.in{opacity:1;transform:translateY(0)}
+  .step .n{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;margin-bottom:16px}
+  .step h3{font-size:15px;margin-bottom:8px}
+  .step p{color:var(--sub);font-size:13px;line-height:1.6}
+
+  .cta-banner{background:linear-gradient(135deg,#1a2a4a,#241a4a);border:1px solid var(--border);border-radius:20px;padding:56px 40px;text-align:center;position:relative;overflow:hidden}
+  .cta-banner h2{font-size:28px;font-weight:800;margin-bottom:12px}
+  .cta-banner p{color:var(--sub);margin-bottom:26px}
+
+  footer{border-top:1px solid var(--border);padding:36px 32px;text-align:center;color:var(--sub);font-size:12.5px}
+
+  /* ============ AUTH MODAL ============ */
+  .modal-ov{position:fixed;inset:0;background:rgba(5,6,10,.7);backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:all .25s}
+  .modal-ov.open{opacity:1;visibility:visible}
+  .modal-box{background:var(--surf);border:1px solid var(--border);border-radius:18px;padding:32px;width:100%;max-width:400px;position:relative;transform:translateY(16px) scale(.97);transition:all .3s cubic-bezier(.34,1.56,.64,1)}
+  .modal-ov.open .modal-box{transform:translateY(0) scale(1)}
+  .modal-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;background:var(--surf2);border:none;color:var(--sub);font-size:15px}
+  .tabs{display:flex;gap:4px;margin-bottom:20px;background:var(--surf2);padding:4px;border-radius:10px}
+  .tab{flex:1;text-align:center;padding:9px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600;color:var(--sub)}
+  .tab.active{background:var(--accent);color:#fff}
+  input{width:100%;padding:11px 14px;background:var(--surf2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;margin-bottom:12px;outline:none}
+  input:focus{border-color:var(--accent)}
+  .modal-box .btn-primary{width:100%;padding:12px}
+  .msg{font-size:13px;padding:10px 12px;border-radius:8px;margin-bottom:12px;display:none}
+  .msg.error{background:#3a1418;color:#ff8a8a;display:block}
+  .msg.success{background:#0f2e1f;color:#7fd99e;display:block}
+
+  /* ============ APP SHELL ============ */
+  #app{display:flex;min-height:100vh}
+  .sidebar{width:220px;flex-shrink:0;background:var(--surf);border-right:1px solid var(--border);padding:22px 14px;display:flex;flex-direction:column}
+  .sidebar .logo{padding:0 10px;margin-bottom:30px}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:9px;color:var(--sub);font-size:14px;font-weight:600;margin-bottom:2px;cursor:pointer}
+  .nav-item .idot{width:6px;height:6px;border-radius:50%;background:var(--sub);flex-shrink:0}
+  .nav-item.active{background:var(--surf2);color:var(--text)}
+  .nav-item.active .idot{background:var(--accent)}
+  .nav-item .soon{margin-left:auto;font-size:9px;background:var(--surf2);color:var(--sub);padding:2px 6px;border-radius:6px;font-weight:700}
+  .nav-item .soon.live{background:#0f2e1f;color:#7fd99e}
+  .sidebar .bottom{margin-top:auto}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;border-bottom:1px solid var(--border)}
+  .role-pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.03em}
+  .role-pill.user{background:var(--surf2);color:var(--sub)}
+  .role-pill.admin{background:#3a2f0f;color:var(--gold)}
+  main.content{flex:1;padding:32px;max-width:1100px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+  @media(max-width:800px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--surf);border:1px solid var(--border);border-radius:14px;padding:20px}
+  .stat .label{color:var(--sub);font-size:12px;margin-bottom:8px}
+  .stat .value{font-size:22px;font-weight:800;font-family:'SF Mono',Consolas,monospace}
+  .card{background:var(--surf);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px}
+  .card h2{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--sub);margin-bottom:16px;font-weight:700}
+  .roadmap-item{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);font-size:13.5px}
+  .roadmap-item:last-child{border-bottom:none}
+  .roadmap-item .check{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+  .check.done{background:#0f2e1f;color:#7fd99e}
+  .check.partial{background:#3a2f0f;color:var(--gold)}
+  .check.todo{background:var(--surf2);color:var(--sub)}
+  .roadmap-item .phase-name{flex:1}
+  .roadmap-item .phase-name .desc{color:var(--sub);font-size:12px}
+  pre{background:#000;border-radius:8px;padding:12px;font-size:11.5px;overflow-x:auto;color:#7fd99e;max-height:180px;overflow-y:auto;margin-top:12px}
+
+  /* ---- écrans "aperçu" (Trading/Portefeuille/Bot/Backtest/Admin) ---- */
+  .preview-note{background:var(--surf2);border:1px dashed var(--border);color:var(--gold);font-size:12px;font-weight:600;padding:9px 14px;border-radius:9px;margin-bottom:18px}
+  .preview-note.live{border:1px solid #163a2c;background:#0f2e1f;color:#7fd99e}
+  .trade-layout{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:20px}
+  @media(max-width:800px){.trade-layout{grid-template-columns:1fr}}
+  .mini-tab{font-size:12.5px;font-weight:600;color:var(--sub);padding-bottom:8px;border-bottom:2px solid transparent;cursor:pointer}
+  .mini-tab.active{color:var(--text);border-bottom-color:var(--accent)}
+  input:disabled{opacity:.55;cursor:not-allowed}
+  .empty-state{text-align:center;color:var(--sub);font-size:13px;padding:30px 10px}
+  .wallet-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px}
+  @media(max-width:700px){.wallet-grid{grid-template-columns:1fr !important}}
+  .wallet-card .wc-cur{color:var(--sub);font-size:12px;font-weight:700;letter-spacing:.04em;margin-bottom:8px}
+  .wallet-card .wc-bal{font-size:26px;font-weight:800;font-family:'SF Mono',Consolas,monospace}
+  .wallet-card .wc-sub{color:var(--sub);font-size:12px;margin-top:2px}
+  .dt-table{width:100%;border-collapse:collapse;font-size:13px}
+  .dt-table th{text-align:left;color:var(--sub);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--border)}
+  .dt-table td{padding:11px 10px;border-bottom:1px solid var(--border)}
+  .dt-table tr:last-child td{border-bottom:none}
+  .tag-pill{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:var(--surf2);color:var(--sub)}
+  .tag-pill.green{background:#0f2e1f;color:#7fd99e}
+  .switch{position:relative;display:inline-block;width:38px;height:22px}
+  .switch input{opacity:0;width:0;height:0}
+  .slider{position:absolute;cursor:not-allowed;inset:0;background:var(--surf3);border-radius:22px;transition:.2s}
+  .slider:before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:var(--sub);border-radius:50%;transition:.2s}
+  .switch input:not(:disabled) + .slider{cursor:pointer}
+  .switch input:checked + .slider{background:#4a1f1f}
+  .switch input:checked + .slider:before{background:var(--red);transform:translateX(16px)}
+  .value.green{color:var(--green)}
+</style>
+</head>
+<body>
+
+<!-- ============ LANDING ============ -->
+<div id="landing">
+  <nav class="topnav">
+    <div class="logo"><svg width="26" height="26" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#5b8def"/><stop offset="100%" stop-color="#8e6bef"/></linearGradient></defs><rect width="40" height="40" rx="10" fill="url(#lg1)"/><line x1="12" y1="14" x2="12" y2="10" stroke="#fff" stroke-width="2" stroke-linecap="round"/><rect x="9" y="14" width="6" height="10" rx="1.5" fill="#fff"/><line x1="12" y1="24" x2="12" y2="28" stroke="#fff" stroke-width="2" stroke-linecap="round"/><line x1="20" y1="9" x2="20" y2="6" stroke="#fff" stroke-width="2" stroke-linecap="round"/><rect x="17" y="9" width="6" height="14" rx="1.5" fill="#fff"/><line x1="20" y1="23" x2="20" y2="27" stroke="#fff" stroke-width="2" stroke-linecap="round"/><line x1="28" y1="6" x2="28" y2="4" stroke="#fff" stroke-width="2" stroke-linecap="round"/><rect x="25" y="6" width="6" height="18" rx="1.5" fill="#fff"/><line x1="28" y1="24" x2="28" y2="30" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>DOT·TRADER</div>
+    <div class="navlinks">
+      <a href="#marches">Marchés</a>
+      <a href="#comment">Comment ça marche</a>
+      <a href="#securite">Sécurité</a>
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="openModal('login')">Connexion</button>
+      <button class="btn btn-primary" onclick="openModal('register')">Inscription</button>
+    </div>
+  </nav>
+
+  <div class="ticker-wrap">
+    <div class="ticker" id="tickerRow"></div>
+  </div>
+
+  <div class="hero-wrap">
+    <div class="glow glow1"></div>
+    <div class="glow glow2"></div>
+    <div class="hero">
+      <div>
+        <div class="tag"><span class="pulse"></span> Phase 0 — testnet, aucun fonds réel engagé</div>
+        <h1>Tradez <em>DOT/USDT</em> avec un moteur qui analyse le marché pour vous</h1>
+        <p>Manuel, assisté par signaux ou entièrement automatique — avec gestion du risque intégrée à chaque ordre. Le moteur combine tendance, structure de marché, RSI, MACD, EMA, ATR et volume.</p>
+        <div class="ctas">
+          <button class="btn btn-primary" onclick="openModal('register')">Créer un compte gratuit</button>
+          <button class="btn btn-ghost" onclick="openModal('login')">J'ai déjà un compte</button>
+        </div>
+        <div class="stats-row">
+          <div class="stat-mini"><div class="num" data-count="0">0</div><div class="lbl">Comptes créés</div></div>
+          <div class="stat-mini"><div class="num" data-count="3">0</div><div class="lbl">Modes de trading</div></div>
+          <div class="stat-mini"><div class="num" data-count="24">0</div><div class="lbl">Support marché /7j</div></div>
+        </div>
+      </div>
+
+      <div style="position:relative">
+        <div class="terminal">
+          <div class="tbar">
+            <div class="pair">DOT<span style="color:var(--sub);font-weight:600">/USDT</span></div>
+            <div class="price" id="livePrice">6.842</div>
+            <div class="dots"><span style="background:var(--red)"></span><span style="background:var(--gold)"></span><span style="background:var(--green)"></span></div>
+          </div>
+          <canvas id="chart"></canvas>
+          <div class="orderbar">
+            <span class="buy">Achats 62%</span>
+            <span style="color:var(--sub)">Spread 0.01%</span>
+            <span class="sell">Ventes 38%</span>
+          </div>
+        </div>
+        <div class="sig-badge" style="top:-16px;right:-10px">🎯 Signal <b>LONG</b> · score 78</div>
+        <div class="sig-badge" style="bottom:-14px;left:-14px;animation-delay:2s">🛡 SL auto · -1.2%</div>
+      </div>
+    </div>
+  </div>
+
+  <section id="marches">
+    <div class="sec-head">
+      <div class="tag" style="margin:0 auto 14px;display:inline-flex">⚡ Trois façons de trader</div>
+      <h2>Adapté à votre niveau, du débutant au trader confirmé</h2>
+      <p>Passez d'un mode à l'autre à tout moment, sur le même compte.</p>
+    </div>
+    <div class="features">
+      <div class="feature"><div class="ico">🖐️</div><h3>Trading manuel</h3><p>Vous gardez la main sur chaque décision d'achat/vente, avec les graphiques et l'exécution en direct.</p></div>
+      <div class="feature"><div class="ico">🎯</div><h3>Trading assisté</h3><p>Le moteur propose un signal complet (entrée, stop-loss, take-profits, score de confiance) — vous validez.</p></div>
+      <div class="feature"><div class="ico">🤖</div><h3>Trading automatique</h3><p>Le bot ouvre et gère les positions selon votre stratégie et vos règles de risque, sans intervention.</p></div>
+      <div class="feature" id="secFeature"><div class="ico">🔐</div><h3>Sécurité</h3><p>2FA (TOTP), rôles, chiffrement des clés exchange, kill switch admin en cas de besoin.</p></div>
+    </div>
+  </section>
+
+  <section id="comment">
+    <div class="sec-head">
+      <div class="tag" style="margin:0 auto 14px;display:inline-flex">📋 En 3 étapes</div>
+      <h2>Comment ça marche</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><h3>Créez votre compte</h3><p>Inscription en quelques secondes, activez le 2FA pour sécuriser votre accès.</p></div>
+      <div class="step"><div class="n">2</div><h3>Choisissez votre mode</h3><p>Manuel, assisté ou automatique — configurez votre niveau de risque par trade.</p></div>
+      <div class="step"><div class="n">3</div><h3>Laissez le moteur travailler</h3><p>Suivez vos positions, signaux et performance en temps réel depuis le dashboard.</p></div>
+    </div>
+  </section>
+
+  <section id="securite">
+    <div class="cta-banner">
+      <h2>Prêt à trader plus intelligemment ?</h2>
+      <p>Créez votre compte et découvrez la plateforme dès maintenant.</p>
+      <button class="btn btn-primary" onclick="openModal('register')" style="padding:14px 30px;font-size:14px">Créer mon compte</button>
+    </div>
+  </section>
+
+  <footer>
+    © 2026 DOT Trader — Plateforme en développement (Phase 0). Aucun conseil financier. Testnet uniquement.
+  </footer>
+</div>
+
+<!-- ============ AUTH MODAL ============ -->
+<div class="modal-ov" id="authModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="tabs">
+      <div class="tab active" id="tabLogin" onclick="switchTab('login')">Connexion</div>
+      <div class="tab" id="tabRegister" onclick="switchTab('register')">Inscription</div>
+    </div>
+    <div id="msg" class="msg"></div>
+    <input id="email" type="email" placeholder="Email" value="demo@dot-trader.local">
+    <input id="password" type="password" placeholder="Mot de passe" value="DemoPassword123">
+    <input id="twoFaCode" type="text" placeholder="Code 2FA (si activé)" class="hidden">
+    <button class="btn btn-primary" id="submitBtn" onclick="submitAuth()">Se connecter</button>
+  </div>
+</div>
+
+<!-- ============ APP (connecté) ============ -->
+<div id="toast" class="msg success" style="position:fixed;bottom:24px;right:24px;z-index:999;max-width:320px;display:none"></div>
+<div id="app" class="hidden">
+  <aside class="sidebar">
+    <div class="logo"><svg width="26" height="26" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#5b8def"/><stop offset="100%" stop-color="#8e6bef"/></linearGradient></defs><rect width="40" height="40" rx="10" fill="url(#lg1)"/><line x1="12" y1="14" x2="12" y2="10" stroke="#fff" stroke-width="2" stroke-linecap="round"/><rect x="9" y="14" width="6" height="10" rx="1.5" fill="#fff"/><line x1="12" y1="24" x2="12" y2="28" stroke="#fff" stroke-width="2" stroke-linecap="round"/><line x1="20" y1="9" x2="20" y2="6" stroke="#fff" stroke-width="2" stroke-linecap="round"/><rect x="17" y="9" width="6" height="14" rx="1.5" fill="#fff"/><line x1="20" y1="23" x2="20" y2="27" stroke="#fff" stroke-width="2" stroke-linecap="round"/><line x1="28" y1="6" x2="28" y2="4" stroke="#fff" stroke-width="2" stroke-linecap="round"/><rect x="25" y="6" width="6" height="18" rx="1.5" fill="#fff"/><line x1="28" y1="24" x2="28" y2="30" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>DOT·TRADER</div>
+    <div class="nav-item active" id="navDashboard" onclick="showView('dashboard')"><span class="idot"></span> Dashboard</div>
+    <div class="nav-item" id="navTrading" onclick="showView('trading')"><span class="idot"></span> Trading <span class="soon live">Live</span></div>
+    <div class="nav-item" id="navPortefeuille" onclick="showView('portefeuille')"><span class="idot"></span> Portefeuille <span class="soon live">Live</span></div>
+    <div class="nav-item" id="navBot" onclick="showView('bot')"><span class="idot"></span> Bot IA <span class="soon live">Live</span></div>
+    <div class="nav-item" id="navBacktest" onclick="showView('backtest')"><span class="idot"></span> Backtesting <span class="soon live">Live</span></div>
+    <div class="nav-item" id="navAdmin" onclick="showView('admin')"><span class="idot"></span> Admin <span class="soon live">Live</span></div>
+    <div class="bottom"><div class="nav-item" onclick="logout()">↩ Déconnexion</div></div>
+  </aside>
+  <div style="flex:1;display:flex;flex-direction:column">
+    <div class="topbar">
+      <div>Bonjour, <strong id="uEmail">—</strong></div>
+      <span class="role-pill user" id="uRolePill">user</span>
+    </div>
+    <main class="content">
+
+      <div id="view-dashboard">
+        <div class="stats">
+          <div class="stat"><div class="label">Solde USDT (réel, testnet)</div><div class="value" id="statUsdt">—</div></div>
+          <div class="stat"><div class="label">Solde DOT (réel, testnet)</div><div class="value" id="statDot">—</div></div>
+          <div class="stat"><div class="label">Ordres exécutés</div><div class="value" id="statOrders">0</div></div>
+          <div class="stat"><div class="label">Statut 2FA</div><div class="value" id="u2fa" style="font-size:15px">—</div></div>
+        </div>
+        <div class="card">
+          <h2>Où en est la plateforme</h2>
+          <div class="roadmap-item"><div class="check done">✓</div><div class="phase-name">Phase 0 — Fondations<div class="desc">Auth, 2FA, RBAC, base de données, connecteur Binance testnet</div></div></div>
+          <div class="roadmap-item"><div class="check done">✓</div><div class="phase-name">Phase 1 — Marché & trading manuel<div class="desc">Prix live par WebSocket, ordres market ET limite réels (pose, annulation, sync), portefeuille réel, bougies stockées en base, positions avec P&L</div></div></div>
+          <div class="roadmap-item"><div class="check done">✓</div><div class="phase-name">Phase 2 — Moteur & mode assisté<div class="desc">Indicateurs réels, scoring explicable, backtesting walk-forward, mode semi-auto (exécution différée), confluence multi-timeframe (exécution/supérieur/fond)</div></div></div>
+          <div class="roadmap-item"><div class="check done">✓</div><div class="phase-name">Phase 3 — Risque & auto<div class="desc">Position sizing serveur, stop-loss obligatoire, kill switch, limites de perte/drawdown, mode automatique réel, positions surveillées en continu, fermeture auto au SL/TP, break-even + trailing stop</div></div></div>
+          <div class="roadmap-item"><div class="check partial">~</div><div class="phase-name">Phase 4 — Admin, garde des fonds & monétisation<div class="desc">✅ Admin complet (stats, utilisateurs, journal d'audit, bots), dépôt/retrait semi-manuel avec validation admin (Option A §4.6bis), tiers free/pro qui gatent réellement le mode auto/risque/commission &nbsp;·&nbsp; ⏳ paiement réel (Stripe), garde de fonds réels — les deux attendent la décision légale (§8)</div></div></div>
+          <div class="roadmap-item"><div class="check done">✓</div><div class="phase-name">Phase 7 — Extension multi-actifs<div class="desc">BTC/ETH/SOL en plus de DOT — mêmes signaux, mêmes ordres, même risk engine, même portefeuille, même WebSocket live, sans code dupliqué. Sélecteur d'actif dans Trading/Bot IA/Backtesting.</div></div></div>
+        </div>
+        <div class="card" id="adminCard" style="display:none">
+          <h2>Outils admin — test infrastructure</h2>
+          <button class="btn btn-primary" style="max-width:260px" onclick="testExchange()">Tester la connexion Binance</button>
+          <pre id="exchangeResult" class="hidden"></pre>
+        </div>
+      </div>
+
+      <!-- TRADING -->
+      <div id="view-trading" class="hidden">
+        <div class="preview-note" id="tradingDataNote">Chargement des données de marché…</div>
+        <div class="trade-layout">
+          <div class="card" style="padding:0;overflow:hidden">
+            <div class="tbar" style="border-bottom:1px solid var(--border)">
+              <select id="symbolSelect" onchange="changeSymbol(this.value)" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:6px 10px;font-weight:800;font-size:15px">
+                <option value="DOT/USDT">DOT/USDT</option>
+                <option value="BTC/USDT">BTC/USDT</option>
+                <option value="ETH/USDT">ETH/USDT</option>
+                <option value="SOL/USDT">SOL/USDT</option>
+              </select>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span id="wsIndicator" style="width:8px;height:8px;border-radius:50%;background:var(--sub);display:inline-block;transition:background .3s"></span>
+                <span id="wsLabel" style="font-size:10.5px;color:var(--sub);text-transform:uppercase;letter-spacing:.04em">connexion…</span>
+                <div class="price" id="tradingPrice">6.842</div>
+              </div>
+            </div>
+            <canvas id="chartBig" style="width:100%;height:340px;display:block"></canvas>
+          </div>
+          <div class="card">
+            <div class="tabs">
+              <div class="tab active" id="tabBuy" onclick="setSide('buy')">Acheter</div>
+              <div class="tab" id="tabSell" onclick="setSide('sell')">Vendre</div>
+            </div>
+            <div class="tabs" style="background:transparent;padding:0;margin-bottom:16px;gap:16px">
+              <div class="mini-tab active" onclick="setOrderType('market',this)">Marché</div>
+              <div class="mini-tab" onclick="setOrderType('limit',this)">Limite</div>
+            </div>
+            <input id="orderPrice" type="text" placeholder="Prix (USDT)" value="6.842" disabled>
+            <input id="orderQty" type="text" placeholder="Quantité" value="10" oninput="updateOrderTotal()">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-bottom:16px">
+              <span>Total estimé</span><span id="orderTotal" style="font-family:'SF Mono',Consolas,monospace">68.42 USDT</span>
+            </div>
+            <button class="btn btn-primary" id="orderBtn" style="width:100%;padding:13px;background:linear-gradient(135deg,#26d99a,#1bb583)" onclick="placeOrder()">Acheter DOT</button>
+            <p style="font-size:11px;color:var(--sub);margin-top:10px;line-height:1.5">Ordre réellement envoyé au compte Binance testnet de la plateforme, réglé immédiatement dans votre portefeuille interne (voir Portefeuille).</p>
+          </div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h2 style="margin:0">Ordres ouverts (limite, en attente)</h2>
+            <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="loadOpenOrders()">🔄 Rafraîchir</button>
+          </div>
+          <div id="openOrdersBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h2 style="margin:0">Positions (réel — surveillées en continu)</h2>
+            <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="loadPositions()">🔄 Rafraîchir</button>
+          </div>
+          <p style="color:var(--sub);font-size:12.5px;margin-bottom:14px">Une position s'ouvre à chaque achat via un signal (Bot IA, manuel ou auto). Un job serveur vérifie le prix chaque minute, ferme automatiquement au marché dès que le stop-loss ou le take-profit est touché, déplace le stop au point mort (🔒 BE) une fois +1R atteint, puis le fait suivre le prix (trailing) pour verrouiller les gains.</p>
+          <div id="positionsBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+      </div>
+
+      <!-- PORTEFEUILLE -->
+      <div id="view-portefeuille" class="hidden">
+        <div class="preview-note live" id="walletNote">🟢 Solde réel — monnaie testnet (aucun fonds réel), débité/crédité à chaque ordre exécuté</div>
+        <div class="wallet-grid" id="walletGrid"><div class="empty-state">Chargement…</div></div>
+        <div class="card" id="custodyForm">
+          <h2>Dépôt / Retrait (semi-manuel)</h2>
+          <p style="color:var(--sub);font-size:12.5px;margin-bottom:14px">Modèle "Option A" de l'architecture (§4.6bis) : votre demande reste en attente jusqu'à validation par un admin — pas d'infrastructure de garde de clés on-chain tant que le cadre légal n'est pas tranché. Compte testnet, aucun fonds réel.</p>
+          <div class="wallet-grid" style="grid-template-columns:1fr 1fr 1.4fr auto auto;margin-bottom:0;align-items:end">
+            <div>
+              <label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Devise</label>
+              <select id="custodyCurrency" style="background:var(--bg2,#12151c);color:#fff;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:0 10px;height:38px;width:100%">
+                <option value="USDT">USDT</option>
+                <option value="DOT">DOT</option>
+                <option value="BTC">BTC</option>
+                <option value="ETH">ETH</option>
+                <option value="SOL">SOL</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Montant</label>
+              <input id="custodyAmount" type="number" min="0" step="0.01" placeholder="0.00">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Référence (dépôt) / destination (retrait)</label>
+              <input id="custodyRef" placeholder="ex: mobile money, memo…">
+            </div>
+            <button class="btn btn-primary" style="height:38px" onclick="requestDeposit()">Déposer</button>
+            <button class="btn btn-ghost" style="height:38px" onclick="requestWithdrawal()">Retirer</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Historique dépôts / retraits</h2>
+          <div id="custodyHistoryBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+        <div class="card">
+          <h2>Ordres récents (règlement du portefeuille)</h2>
+          <div id="ordersHistoryBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+      </div>
+
+      <!-- BOT IA -->
+      <div id="view-bot" class="hidden">
+        <div class="preview-note live" id="signalNote">🟢 Mode assisté réel — le moteur analyse EMA/RSI/MACD/volume/structure sur de vraies données</div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <h2 style="margin:0">Signal <span id="signalSymbolLabel">DOT/USDT</span> (15m, filtré par tendance 4h)</h2>
+            <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="loadSignal()">🔄 Rafraîchir</button>
+          </div>
+          <div id="signalBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+        <div class="card">
+          <h2>Comment ça fonctionne</h2>
+          <p style="color:var(--sub);font-size:12.5px;line-height:1.7">Le moteur calcule EMA20/50, RSI14, MACD, volume relatif et la position par rapport au dernier support/résistance sur le timeframe d'exécution (15m), croisés avec la tendance du timeframe supérieur (4h) et une confluence sur un troisième horizon de fond — trois niveaux qui doivent s'accorder pour renforcer le score, ou le faire douter en cas de désaccord. Chaque critère pondère un score de confiance (0-100). Si le score est trop faible, <b>aucun signal n'est émis</b> — le moteur ne force jamais un trade.</p>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <h2 style="margin:0">Mode automatique — réel</h2>
+            <label class="switch"><input type="checkbox" id="botEnabledToggle" onchange="toggleBot(this.checked)"><span class="slider"></span></label>
+          </div>
+          <p style="color:var(--sub);font-size:12.5px;margin-bottom:14px">Un job planifié (toutes les minutes côté serveur) évalue ce signal <b>sans validation humaine</b> et exécute automatiquement dès qu'il dépasse le seuil de confiance — toujours sous le kill switch et les limites de risque (Phase 3).</p>
+          <div class="wallet-grid" style="grid-template-columns:1fr 1fr auto;margin-bottom:12px;align-items:end">
+            <div>
+              <label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Confiance minimale (%)</label>
+              <input id="botMinConfidence" type="number" min="0" max="100" step="5" value="70">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Risque par trade (%)</label>
+              <input id="botRiskPercent" type="number" min="0.1" max="3" step="0.1" value="1">
+            </div>
+            <button class="btn btn-ghost" style="height:38px" onclick="saveBotSettings()">Enregistrer</button>
+          </div>
+          <div id="botStatus" style="font-size:12px;color:var(--sub)">Chargement…</div>
+        </div>
+      </div>
+
+      <!-- BACKTESTING -->
+      <div id="view-backtest" class="hidden">
+        <div class="preview-note">✅ Données réelles — le moteur de backtest rejoue les mêmes règles que le signal live (Phase 2) sur des bougies Binance testnet historiques.</div>
+        <div class="card">
+          <h2>Lancer un backtest</h2>
+          <div class="wallet-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:0">
+            <select id="btSymbol" onchange="changeSymbol(this.value)" style="background:var(--bg2,#12151c);color:#fff;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:0 10px">
+              <option value="DOT/USDT">DOT/USDT</option>
+              <option value="BTC/USDT">BTC/USDT</option>
+              <option value="ETH/USDT">ETH/USDT</option>
+              <option value="SOL/USDT">SOL/USDT</option>
+            </select>
+            <select id="btTimeframe" style="background:var(--bg2,#12151c);color:#fff;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:0 10px">
+              <option value="5m">5m</option>
+              <option value="15m" selected>15m</option>
+              <option value="1h">1h</option>
+              <option value="4h">4h</option>
+            </select>
+            <input id="btLimit" type="number" min="100" max="1000" step="50" value="500" placeholder="Nb bougies">
+            <input id="btMinConfidence" type="number" min="0" max="100" step="5" value="60" placeholder="Confiance min">
+          </div>
+          <button class="btn btn-primary" id="btRunBtn" style="margin-top:14px;max-width:220px" onclick="runRealBacktest()">Lancer le backtest</button>
+        </div>
+        <div class="card" id="backtestResult" style="display:none">
+          <h2>Résultat (réel — <span id="btMeta"></span>)</h2>
+          <div class="stats" style="margin-bottom:16px">
+            <div class="stat"><div class="label">Win rate</div><div class="value" id="btWinRate">—</div></div>
+            <div class="stat"><div class="label">Profit factor</div><div class="value" id="btProfitFactor">—</div></div>
+            <div class="stat"><div class="label">Max drawdown</div><div class="value" style="color:var(--red)" id="btDrawdown">—</div></div>
+            <div class="stat"><div class="label">R moyen</div><div class="value" id="btAvgR">—</div></div>
+            <div class="stat"><div class="label">Trades</div><div class="value" id="btTotalTrades">—</div></div>
+            <div class="stat"><div class="label">Équité finale</div><div class="value" id="btEquity">—</div></div>
+          </div>
+          <div style="font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Courbe d'équité</div>
+          <canvas id="btEquityChart" style="width:100%;height:140px;display:block;margin-bottom:20px"></canvas>
+          <div style="font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Trades simulés</div>
+          <div id="btTradesTable" style="max-height:260px;overflow-y:auto"></div>
+        </div>
+      </div>
+
+      <!-- ADMIN -->
+      <div id="view-admin" class="hidden">
+        <div class="card">
+          <h2>Vue d'ensemble plateforme</h2>
+          <div class="stats" id="adminStatsBox" style="margin-bottom:0"><div class="empty-state">Chargement…</div></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h2 style="margin:0">Utilisateurs</h2>
+            <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="loadAdminUsers()">🔄 Rafraîchir</button>
+          </div>
+          <p style="color:var(--sub);font-size:12.5px;margin-bottom:14px">Branché sur <code>GET /admin/users</code> — suspension, rôle et tier d'abonnement modifient réellement le comportement du compte (login bloqué si suspendu, mode auto/risque selon le tier).</p>
+          <div id="adminUsersBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h2 style="margin:0">Dépôts en attente</h2>
+            <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="loadAdminDeposits()">🔄 Rafraîchir</button>
+          </div>
+          <div id="adminDepositsBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h2 style="margin:0">Retraits en attente</h2>
+            <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="loadAdminWithdrawals()">🔄 Rafraîchir</button>
+          </div>
+          <div id="adminWithdrawalsBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+        <div class="card">
+          <h2>Bots — tous utilisateurs</h2>
+          <div id="adminBotsBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+        <div class="card">
+          <h2>Journal d'audit</h2>
+          <p style="color:var(--sub);font-size:12.5px;margin-bottom:14px">Toute action de risque (kill switch, limites, suspension, changement de rôle/tier) est tracée ici — <code>GET /admin/audit-logs</code>.</p>
+          <div id="adminAuditBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+        <div class="card">
+          <h2>Contrôles plateforme — réels (Phase 3 Risk Engine)</h2>
+          <p style="color:var(--sub);font-size:12.5px;margin-bottom:14px">Le kill switch est vérifié côté serveur avant <b>tout</b> passage d'ordre (manuel ou assisté) — <code>GET/POST /risk/kill-switch</code>, réservé au rôle admin.</p>
+          <div class="kv"><span class="k">Trading (kill switch global)</span><span class="v"><label class="switch"><input type="checkbox" id="killSwitchToggle" onchange="toggleKillSwitch(this.checked)"><span class="slider"></span></label></span></div>
+          <div id="killSwitchStatus" style="font-size:12px;color:var(--sub);margin-top:6px;margin-bottom:16px"></div>
+
+          <p style="color:var(--sub);font-size:12.5px;margin-bottom:14px">Limites appliquées à chaque compte — au-delà, le Risk Engine bloque automatiquement tout nouvel ordre pour cet utilisateur (pas besoin du kill switch global). Calculées en direct sur l'équité réelle (<code>GET /risk/status</code>).</p>
+          <div class="wallet-grid" style="grid-template-columns:1fr 1fr auto;margin-bottom:0;align-items:end">
+            <div>
+              <label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Perte journalière max (%)</label>
+              <input id="limitDailyLoss" type="number" min="0.1" max="100" step="0.5" value="5">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Drawdown max du compte (%)</label>
+              <input id="limitDrawdown" type="number" min="0.1" max="100" step="0.5" value="20">
+            </div>
+            <button class="btn btn-primary" style="height:38px" onclick="saveRiskLimits()">Enregistrer</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Mon statut de risque (compte démo)</h2>
+          <div class="stats" style="margin-bottom:0">
+            <div class="stat"><div class="label">Équité actuelle</div><div class="value" id="riskEquity">—</div></div>
+            <div class="stat"><div class="label">Pic d'équité</div><div class="value" id="riskPeak">—</div></div>
+            <div class="stat"><div class="label">Drawdown</div><div class="value" id="riskDrawdown">—</div></div>
+            <div class="stat"><div class="label">Perte du jour</div><div class="value" id="riskDailyLoss">—</div></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+const API = 'http://localhost:3001';
+let mode = 'login';
+let tokens = JSON.parse(localStorage.getItem('dt_tokens') || 'null');
+
+/* ---------- Ticker animé ---------- */
+const tickerData = [
+  {sym:'DOT/USDT', price:6.842}, {sym:'BTC/USDT', price:97210}, {sym:'ETH/USDT', price:3684},
+  {sym:'SOL/USDT', price:214.5}, {sym:'BNB/USDT', price:712.3}, {sym:'ADA/USDT', price:0.812},
+];
+function renderTicker(){
+  const row = document.getElementById('tickerRow');
+  const html = tickerData.map(t=>{
+    const chg = (Math.random()*4-1.5).toFixed(2);
+    const up = chg >= 0;
+    return `<span class="tick"><span class="sym">${t.sym}</span> ${t.price.toLocaleString('fr-FR')} <span class="chg ${up?'up':'down'}">${up?'▲':'▼'} ${Math.abs(chg)}%</span></span>`;
+  }).join('');
+  row.innerHTML = html + html; // dupliqué pour la boucle infinie
+}
+renderTicker();
+setInterval(renderTicker, 4000);
+
+/* ---------- Prix live simulé ---------- */
+let livePrice = 6.842;
+setInterval(()=>{
+  livePrice += (Math.random()-0.5)*0.02;
+  document.getElementById('livePrice').textContent = livePrice.toFixed(3);
+}, 1500);
+
+/* ---------- Graphique bougies : hero simulé (décor landing) + écran Trading réel ---------- */
+function resizeCanvases(){
+  ['chart','chartBig'].forEach(id=>{
+    const c = document.getElementById(id);
+    if(c){ c.width = c.clientWidth * devicePixelRatio; c.height = c.clientHeight * devicePixelRatio; }
+  });
+}
+function drawCandlesOn(canvas, candleArr){
+  if(!canvas || !candleArr.length) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+  const prices = candleArr.flatMap(c=>[c.high,c.low]);
+  const max = Math.max(...prices), min = Math.min(...prices);
+  const pad = (max-min)*0.15 || 0.1;
+  const yMax = max+pad, yMin = min-pad;
+  const cw = w / candleArr.length;
+  const y = v => h - ((v-yMin)/(yMax-yMin))*h;
+
+  ctx.strokeStyle = 'rgba(255,255,255,.04)';
+  ctx.lineWidth = 1;
+  for(let i=1;i<4;i++){ const gy = (h/4)*i; ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(w,gy); ctx.stroke(); }
+
+  candleArr.forEach((c,i)=>{
+    const x = i*cw + cw/2;
+    const up = c.close >= c.open;
+    ctx.strokeStyle = up ? '#26d99a' : '#ef5350';
+    ctx.fillStyle = up ? '#26d99a' : '#ef5350';
+    ctx.lineWidth = Math.max(1, devicePixelRatio);
+    ctx.beginPath(); ctx.moveTo(x, y(c.high)); ctx.lineTo(x, y(c.low)); ctx.stroke();
+    const bodyW = cw*0.55;
+    const yOpen = y(c.open), yClose = y(c.close);
+    ctx.fillRect(x-bodyW/2, Math.min(yOpen,yClose), bodyW, Math.max(2,Math.abs(yClose-yOpen)));
+  });
+}
+
+// --- hero (landing, non authentifié) : purement décoratif, données simulées ---
+let heroCandles = [];
+function seedHeroCandles(){
+  let price = 6.6;
+  heroCandles = [];
+  for(let i=0;i<40;i++){
+    const open = price;
+    const close = open + (Math.random()-0.48)*0.12;
+    const high = Math.max(open,close) + Math.random()*0.05;
+    const low = Math.min(open,close) - Math.random()*0.05;
+    heroCandles.push({open, close, high, low});
+    price = close;
+  }
+}
+function tickHeroChart(){
+  const last = heroCandles[heroCandles.length-1];
+  const open = last.close;
+  const close = open + (Math.random()-0.48)*0.12;
+  const high = Math.max(open,close) + Math.random()*0.05;
+  const low = Math.min(open,close) - Math.random()*0.05;
+  heroCandles.push({open,close,high,low});
+  heroCandles.shift();
+  drawCandlesOn(document.getElementById('chart'), heroCandles);
+}
+function initChart(){
+  resizeCanvases(); seedHeroCandles(); drawCandlesOn(document.getElementById('chart'), heroCandles);
+  setInterval(tickHeroChart, 1200);
+}
+
+// --- écran Trading (authentifié) : vraies données Binance testnet via l'API ---
+let tradingCandles = [];
+let tradingIsLive = false;
+let currentSymbol = 'DOT/USDT';
+function baseAsset(symbol){ return (symbol || currentSymbol).split('/')[0]; }
+function changeSymbol(symbol){
+  currentSymbol = symbol;
+  document.querySelectorAll('#symbolSelect, #btSymbol').forEach(el=>{ if(el) el.value = symbol; });
+  setSide(orderSide); // rafraîchit le libellé du bouton (Acheter/Vendre <ASSET>)
+  loadRealCandles();
+  loadPositions();
+  loadOpenOrders();
+  loadSignal();
+  loadBotSettings();
+}
+async function loadRealCandles(){
+  const note = document.getElementById('tradingDataNote');
+  try{
+    const res = await fetch(API + '/market/candles?symbol=' + encodeURIComponent(currentSymbol) + '&timeframe=1m&limit=60', {
+      headers:{ Authorization: 'Bearer ' + tokens.accessToken }
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.message || 'Erreur API');
+    tradingCandles = data.candles.map(c=>({open:c.open, close:c.close, high:c.high, low:c.low}));
+    tradingIsLive = true;
+    note.textContent = '🟢 Données réelles — Binance testnet, ' + currentSymbol + ', 1m';
+    note.className = 'preview-note live';
+    const last = tradingCandles[tradingCandles.length-1];
+    document.getElementById('tradingPrice').textContent = last.close.toFixed(3);
+  }catch(e){
+    tradingIsLive = false;
+    seedHeroCandles(); // réutilise le générateur simulé comme repli visuel
+    tradingCandles = heroCandles.slice();
+    note.textContent = '🟡 ' + (e.message || 'Connecteur Binance testnet non configuré') + ' — graphique simulé en attendant';
+    note.className = 'preview-note';
+  }
+  resizeCanvases();
+  drawCandlesOn(document.getElementById('chartBig'), tradingCandles);
+}
+window.addEventListener('resize', ()=>{
+  resizeCanvases();
+  drawCandlesOn(document.getElementById('chart'), heroCandles);
+  drawCandlesOn(document.getElementById('chartBig'), tradingCandles);
+});
+initChart();
+
+/* ---------- Prix live via WebSocket (remplace le sondage périodique côté navigateur) ---------- */
+let wsSocket = null;
+function connectMarketSocket(){
+  try{
+    wsSocket = io(API, { transports: ['websocket', 'polling'] });
+    wsSocket.on('connect', ()=>{
+      document.getElementById('wsIndicator').style.background = 'var(--green)';
+      document.getElementById('wsLabel').textContent = 'live · websocket';
+    });
+    wsSocket.on('disconnect', ()=>{
+      document.getElementById('wsIndicator').style.background = 'var(--sub)';
+      document.getElementById('wsLabel').textContent = 'déconnecté';
+    });
+    wsSocket.on('connect_error', ()=>{
+      document.getElementById('wsIndicator').style.background = 'var(--red)';
+      document.getElementById('wsLabel').textContent = 'indisponible';
+    });
+    wsSocket.on('price', (msg)=>{
+      if(!msg || typeof msg.price !== 'number' || msg.symbol !== currentSymbol) return;
+      const priceEl = document.getElementById('tradingPrice');
+      if(priceEl) priceEl.textContent = msg.price.toFixed(3);
+      if(tradingCandles.length && tradingIsLive){
+        const last = tradingCandles[tradingCandles.length-1];
+        last.close = msg.price;
+        last.high = Math.max(last.high, msg.price);
+        last.low = Math.min(last.low, msg.price);
+        const view = document.getElementById('view-trading');
+        if(view && !view.classList.contains('hidden')) drawCandlesOn(document.getElementById('chartBig'), tradingCandles);
+        updateOrderTotal();
+      }
+    });
+  }catch(e){
+    document.getElementById('wsLabel').textContent = 'indisponible';
+  }
+}
+connectMarketSocket();
+
+/* ---------- Compteurs animés ---------- */
+function animateCounters(){
+  document.querySelectorAll('[data-count]').forEach(el=>{
+    const target = parseInt(el.dataset.count,10);
+    let cur = 0;
+    const step = Math.max(1, target/30);
+    const iv = setInterval(()=>{
+      cur += step;
+      if(cur>=target){ cur = target; clearInterval(iv); }
+      el.textContent = Math.floor(cur);
+    }, 30);
+  });
+}
+animateCounters();
+
+/* ---------- Fade-in on scroll ---------- */
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+},{threshold:.15});
+document.querySelectorAll('.feature, .step').forEach(el=>io.observe(el));
+
+/* ---------- Auth modal ---------- */
+function openModal(m){ switchTab(m); document.getElementById('authModal').classList.add('open'); }
+function closeModal(){ document.getElementById('authModal').classList.remove('open'); }
+function switchTab(m){
+  mode = m;
+  document.getElementById('tabLogin').classList.toggle('active', m==='login');
+  document.getElementById('tabRegister').classList.toggle('active', m==='register');
+  document.getElementById('submitBtn').textContent = m==='login' ? 'Se connecter' : "S'inscrire";
+  document.getElementById('twoFaCode').classList.toggle('hidden', m!=='login');
+}
+function showMsg(text, type){ const el=document.getElementById('msg'); el.textContent=text; el.className='msg '+type; }
+
+async function submitAuth(){
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const twoFaCode = document.getElementById('twoFaCode').value.trim();
+  const path = mode === 'login' ? '/auth/login' : '/auth/register';
+  const body = mode === 'login' ? { email, password, ...(twoFaCode ? { twoFaCode } : {}) } : { email, password };
+  try{
+    const res = await fetch(API + path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const data = await res.json();
+    if(!res.ok){ showMsg(data.message || 'Erreur', 'error'); return; }
+    tokens = data;
+    localStorage.setItem('dt_tokens', JSON.stringify(tokens));
+    closeModal();
+    await enterApp();
+  }catch(e){
+    showMsg("Impossible de contacter l'API — est-elle démarrée sur " + API + " ?", 'error');
+  }
+}
+
+function logout(){
+  localStorage.removeItem('dt_tokens'); tokens = null;
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('landing').classList.remove('hidden');
+}
+
+async function enterApp(){
+  try{
+    const res = await fetch(API + '/users/me', { headers:{ Authorization: 'Bearer ' + tokens.accessToken } });
+    if(!res.ok) throw new Error();
+    const user = await res.json();
+    document.getElementById('uEmail').textContent = user.email;
+    const pill = document.getElementById('uRolePill');
+    pill.textContent = user.role; pill.className = 'role-pill ' + user.role;
+    document.getElementById('u2fa').textContent = user.twoFaEnabled ? 'Activé ✅' : 'Désactivé';
+    document.getElementById('adminCard').style.display = user.role === 'admin' ? 'block' : 'none';
+    document.getElementById('landing').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    loadDashboardStats();
+  }catch(e){ tokens = null; localStorage.removeItem('dt_tokens'); }
+}
+
+/* ---- Wallet réel (branché sur GET /wallet et GET /trading/orders) ---- */
+async function fetchWallets(){
+  const res = await fetch(API + '/wallet', { headers:{ Authorization: 'Bearer ' + tokens.accessToken } });
+  if(!res.ok) throw new Error('wallet API error');
+  return res.json();
+}
+async function loadDashboardStats(){
+  try{
+    const wallets = await fetchWallets();
+    const usdt = wallets.find(w=>w.currency==='USDT');
+    const dot = wallets.find(w=>w.currency==='DOT');
+    document.getElementById('statUsdt').textContent = usdt ? Number(usdt.availableBalance).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' $' : '0,00 $';
+    document.getElementById('statDot').textContent = dot ? Number(dot.availableBalance).toLocaleString('fr-FR',{minimumFractionDigits:4}) + ' DOT' : '0 DOT';
+    const ordersRes = await fetch(API + '/trading/orders', { headers:{ Authorization: 'Bearer ' + tokens.accessToken } });
+    const orders = ordersRes.ok ? await ordersRes.json() : [];
+    document.getElementById('statOrders').textContent = orders.filter(o=>o.status==='filled').length;
+  }catch(e){ /* pas bloquant sur le dashboard */ }
+}
+async function loadWalletView(){
+  const grid = document.getElementById('walletGrid');
+  const histBox = document.getElementById('ordersHistoryBox');
+  try{
+    const wallets = await fetchWallets();
+    const baseCurrencies = ['USDT','DOT'];
+    const extraCurrencies = wallets
+      .filter(w=>!baseCurrencies.includes(w.currency) && (Number(w.availableBalance)>0 || Number(w.lockedBalance)>0))
+      .map(w=>w.currency);
+    const currencies = [...baseCurrencies, ...extraCurrencies];
+    grid.innerHTML = currencies.map(cur=>{
+      const w = wallets.find(x=>x.currency===cur);
+      const bal = w ? Number(w.availableBalance) : 0;
+      const locked = w ? Number(w.lockedBalance) : 0;
+      const decimals = cur==='USDT' ? 2 : (cur==='BTC' ? 6 : 4);
+      return `<div class="card wallet-card"><div class="wc-cur">${cur}</div><div class="wc-bal">${bal.toLocaleString('fr-FR',{minimumFractionDigits:decimals,maximumFractionDigits:decimals})}</div><div class="wc-sub">Disponible (testnet)${locked>0?` · ${locked.toLocaleString('fr-FR')} verrouillé (retrait en attente)`:''}</div>
+        <div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" style="flex:1;padding:10px;font-size:12.5px" onclick="focusCustodyForm('${cur}')">Déposer</button><button class="btn btn-ghost" style="flex:1;padding:10px;font-size:12.5px" onclick="focusCustodyForm('${cur}')">Retirer</button></div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    grid.innerHTML = '<div class="empty-state">Impossible de charger le portefeuille.</div>';
+  }
+  try{
+    const res = await fetch(API + '/trading/orders', { headers:{ Authorization: 'Bearer ' + tokens.accessToken } });
+    const orders = await res.json();
+    if(!orders.length){ histBox.innerHTML = '<div class="empty-state">Aucun ordre pour l\'instant.</div>'; return; }
+    histBox.innerHTML = `<table class="dt-table"><thead><tr><th>Symbole</th><th>Sens</th><th>Qté</th><th>Prix moyen</th><th>Statut</th><th>Date</th></tr></thead><tbody>
+      ${orders.map(o=>`<tr><td>${o.symbol}</td><td><span class="tag-pill ${o.side==='buy'?'green':''}">${o.side==='buy'?'Achat':'Vente'}</span></td><td>${o.filledQty ?? o.qty}</td><td>${o.avgPrice ?? '—'}</td><td>${o.status}</td><td>${new Date(o.createdAt).toLocaleString('fr-FR')}</td></tr>`).join('')}
+    </tbody></table>`;
+  }catch(e){
+    histBox.innerHTML = '<div class="empty-state">Impossible de charger l\'historique.</div>';
+  }
+  loadCustodyHistory();
+}
+function focusCustodyForm(currency){
+  document.getElementById('custodyCurrency').value = currency;
+  document.getElementById('custodyForm').scrollIntoView({behavior:'smooth', block:'center'});
+  document.getElementById('custodyAmount').focus();
+}
+async function requestDeposit(){
+  const currency = document.getElementById('custodyCurrency').value;
+  const amount = parseFloat(document.getElementById('custodyAmount').value);
+  const reference = document.getElementById('custodyRef').value;
+  if(!amount || amount <= 0){ showMsgToast('⚠️ Montant invalide'); return; }
+  try{
+    const res = await fetch(API + '/wallet/deposits', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization: 'Bearer ' + tokens.accessToken },
+      body: JSON.stringify({ currency, amount, reference })
+    });
+    const data = await res.json();
+    if(!res.ok){ showMsgToast('❌ ' + (data.message || 'Erreur')); return; }
+    showMsgToast('🕒 Demande de dépôt envoyée — en attente de validation admin');
+    document.getElementById('custodyAmount').value = '';
+    loadCustodyHistory();
+  }catch(e){ showMsgToast("⚠️ Impossible de contacter l'API"); }
+}
+async function requestWithdrawal(){
+  const currency = document.getElementById('custodyCurrency').value;
+  const amount = parseFloat(document.getElementById('custodyAmount').value);
+  const destination = document.getElementById('custodyRef').value;
+  if(!amount || amount <= 0){ showMsgToast('⚠️ Montant invalide'); return; }
+  if(!destination){ showMsgToast('⚠️ Indiquez une destination'); return; }
+  try{
+    const res = await fetch(API + '/wallet/withdrawals', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization: 'Bearer ' + tokens.accessToken },
+      body: JSON.stringify({ currency, amount, destination })
+    });
+    const data = await res.json();
+    if(!res.ok){ showMsgToast('❌ ' + (data.message || 'Erreur')); return; }
+    showMsgToast('🔒 Fonds verrouillés — retrait en attente de validation admin');
+    document.getElementById('custodyAmount').value = '';
+    document.getElementById('custodyRef').value = '';
+    loadCustodyHistory();
+    loadWalletView();
+  }catch(e){ showMsgToast("⚠️ Impossible de contacter l'API"); }
+}
+async function loadCustodyHistory(){
+  const box = document.getElementById('custodyHistoryBox');
+  if(!box) return;
+  try{
+    const [depRes, wdRes] = await Promise.all([
+      fetch(API + '/wallet/deposits', { headers:{ Authorization: 'Bearer ' + tokens.accessToken } }),
+      fetch(API + '/wallet/withdrawals', { headers:{ Authorization: 'Bearer ' + tokens.accessToken } }),
+    ]);
+    const deposits = (await depRes.json()).map(d=>({...d, kind:'Dépôt'}));
+    const withdrawals = (await wdRes.json()).map(w=>({...w, kind:'Retrait'}));
+    const all = [...deposits, ...withdrawals].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+    if(!all.length){ box.innerHTML = '<div class="empty-state">Aucune demande pour l\'instant.</div>'; return; }
+    box.innerHTML = `<table class="dt-table"><thead><tr><th>Type</th><th>Devise</th><th>Montant</th><th>Statut</th><th>Date</th></tr></thead><tbody>
+      ${all.map(x=>`<tr><td>${x.kind}</td><td>${x.currency}</td><td>${x.amount}</td><td><span class="tag-pill ${x.status==='credited'||x.status==='sent'?'green':''}">${x.status}</span></td><td>${new Date(x.createdAt).toLocaleString('fr-FR')}</td></tr>`).join('')}
+    </tbody></table>`;
+  }catch(e){
+    box.innerHTML = '<div class="empty-state">Impossible de charger l\'historique.</div>';
+  }
+}
+
+/* ---- Signal (mode assisté réel, branché sur le moteur) ---- */
+let currentSignal = null;
+async function loadSignal(){
+  const box = document.getElementById('signalBox');
+  const label = document.getElementById('signalSymbolLabel');
+  if(label) label.textContent = currentSymbol;
+  box.innerHTML = '<div class="empty-state">Analyse du marché en cours…</div>';
+  try{
+    const res = await fetch(API + '/signals?symbol=' + encodeURIComponent(currentSymbol) + '&timeframe=15m&higherTimeframe=4h&minConfidence=0', {
+      headers:{ Authorization: 'Bearer ' + tokens.accessToken }
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.message || 'Erreur');
+    currentSignal = data.signal;
+    if(!currentSignal){
+      box.innerHTML = '<div class="empty-state">Aucun signal — conditions de marché insuffisantes en ce moment (score sous le seuil).</div>';
+      return;
+    }
+    const s = currentSignal;
+    const up = s.side === 'buy';
+    box.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+        <span class="tag-pill ${up?'green':''}" style="font-size:14px;padding:6px 16px">${up?'LONG':'SHORT'}</span>
+        <span style="font-size:22px;font-weight:800;font-family:'SF Mono',Consolas,monospace">${s.confidence}<span style="font-size:13px;color:var(--sub)">/100 confiance</span></span>
+      </div>
+      <div class="kv"><span class="k">Entrée</span><span class="v">${s.entry.toFixed(4)} USDT</span></div>
+      <div class="kv"><span class="k">Stop-loss</span><span class="v" style="color:var(--red)">${s.stopLoss.toFixed(4)} USDT</span></div>
+      <div class="kv"><span class="k">Take-profits</span><span class="v" style="color:var(--green)">${s.takeProfits.map(t=>t.toFixed(4)).join(' · ')}</span></div>
+      <div class="kv"><span class="k">Ratio risque/rendement</span><span class="v">1:${s.riskRewardRatio}</span></div>
+      <div style="margin-top:14px;margin-bottom:16px">
+        <div style="font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Pourquoi ce signal</div>
+        <ul style="padding-left:18px;font-size:12.5px;color:var(--sub);line-height:1.8">${s.reasons.map(r=>`<li>${r}</li>`).join('')}</ul>
+      </div>
+      <div class="tabs" style="background:transparent;padding:0;margin-bottom:14px;gap:16px">
+        <div class="mini-tab active" id="execModeMarket" onclick="setSignalExecMode('market')">Exécuter maintenant (marché)</div>
+        <div class="mini-tab" id="execModeLimit" onclick="setSignalExecMode('limit')">Poser un ordre limite (semi-auto)</div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;padding:13px" onclick="validateSignal()">✅ Valider${up?' — Achat':' — Vente'}</button>
+      <p style="font-size:11px;color:var(--sub);margin-top:10px" id="execModeHint">Taille calculée : 1% du solde USDT risqué / distance au stop-loss (voir Risk Engine, §4.5). Exécution immédiate au marché.</p>
+    `;
+    signalExecMode = 'market';
+  }catch(e){
+    box.innerHTML = '<div class="empty-state">' + (e.message || "Impossible de contacter l'API") + '</div>';
+  }
+}
+let signalExecMode = 'market';
+function setSignalExecMode(mode){
+  signalExecMode = mode;
+  document.getElementById('execModeMarket').classList.toggle('active', mode==='market');
+  document.getElementById('execModeLimit').classList.toggle('active', mode==='limit');
+  document.getElementById('execModeHint').textContent = mode==='market'
+    ? "Taille calculée : 1% du solde USDT risqué / distance au stop-loss (voir Risk Engine, §4.5). Exécution immédiate au marché."
+    : "Mode semi-auto (§4.4) : pose un ordre limite réel au prix d'entrée du signal au lieu d'exécuter tout de suite. La position ne s'ouvre (et n'est surveillée) qu'une fois l'ordre rempli.";
+}
+async function validateSignal(){
+  if(!currentSignal) return;
+  try{
+    // La taille n'est plus calculée côté client : le serveur (risk-engine) recalcule
+    // qty à partir du solde réel, du % de risque et de la distance au stop-loss (§4.5).
+    const res = await fetch(API + '/trading/execute-signal', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization: 'Bearer ' + tokens.accessToken },
+      body: JSON.stringify({
+        symbol: currentSignal.symbol,
+        side: currentSignal.side,
+        entry: currentSignal.entry,
+        stopLoss: currentSignal.stopLoss,
+        takeProfit: currentSignal.takeProfits[0],
+        riskPercent: 1,
+        orderType: signalExecMode,
+      })
+    });
+    const order = await res.json();
+    if(!res.ok){ showMsgToast('❌ ' + (Array.isArray(order.message) ? order.message.join(', ') : order.message) || 'Erreur'); return; }
+    if(order.status === 'filled'){
+      showMsgToast(`✅ Signal exécuté — ${order.filledQty} ${currentSignal.symbol.split('/')[0]} @ ${order.avgPrice} (risque serveur : ${order.riskAmount.toFixed(2)} USDT)`);
+      loadDashboardStats();
+    } else if(order.status === 'open'){
+      showMsgToast(`🕒 Ordre limite posé sur Binance testnet à ${currentSignal.entry.toFixed(4)} — sera surveillé une fois rempli`);
+    } else {
+      showMsgToast('⚠️ ' + (order.errorMessage || 'Ordre échoué'));
+    }
+  }catch(e){
+    showMsgToast("⚠️ Impossible de contacter l'API");
+  }
+}
+async function loadPositions(){
+  const box = document.getElementById('positionsBox');
+  try{
+    const res = await fetch(API + '/positions', { headers:{ Authorization: 'Bearer ' + tokens.accessToken } });
+    const positions = await res.json();
+    if(!positions.length){ box.innerHTML = '<div class="empty-state">Aucune position pour l\'instant.</div>'; return; }
+    const exitLabels = { sl:'SL', tp:'TP', manual:'manuel', trailing_stop:'trailing' };
+    box.innerHTML = `<table class="dt-table"><thead><tr>
+        <th>Statut</th><th>Entrée</th><th>SL courant</th><th>TP</th><th>Sortie</th><th>P&L</th><th>Ouverte le</th><th></th>
+      </tr></thead><tbody>
+      ${positions.map(p=>{
+        const open = p.status==='open';
+        const pnl = p.realizedPnl !== null ? Number(p.realizedPnl) : null;
+        return `<tr>
+          <td><span class="tag-pill ${open?'green':''}">${open?'OUVERTE':'FERMÉE (' + (exitLabels[p.exitReason] || p.exitReason) + ')'}</span>${p.breakEvenActivated?' <span class="tag-pill" title="Stop déplacé au point mort / trailing">🔒 BE</span>':''}</td>
+          <td>${Number(p.entryPrice).toFixed(4)}</td>
+          <td style="color:var(--red)">${Number(p.stopLoss).toFixed(4)}</td>
+          <td style="color:var(--green)">${p.takeProfit ? Number(p.takeProfit).toFixed(4) : '—'}</td>
+          <td>${p.exitPrice ? Number(p.exitPrice).toFixed(4) : '—'}</td>
+          <td style="color:${pnl===null?'var(--sub)':(pnl>=0?'var(--green)':'var(--red)')}">${pnl===null?'—':(pnl>=0?'+':'')+pnl.toFixed(4)+' USDT'}</td>
+          <td>${new Date(p.openedAt).toLocaleString('fr-FR')}</td>
+          <td>${open ? `<button class="btn btn-ghost" style="padding:5px 10px;font-size:11px" onclick="closePosition('${p.id}')">Fermer</button>` : ''}</td>
+        </tr>`;
+      }).join('')}
+      </tbody></table>`;
+  }catch(e){
+    box.innerHTML = '<div class="empty-state">Impossible de charger — API injoignable.</div>';
+  }
+}
+async function closePosition(id){
+  try{
+    const res = await fetch(API + '/positions/' + id + '/close', {
+      method:'POST',
+      headers:{ Authorization: 'Bearer ' + tokens.accessToken },
+    });
+    const data = await res.json();
+    if(!res.ok){ showMsgToast('❌ ' + (data.message || 'Erreur')); return; }
+    showMsgToast('✅ Position fermée manuellement');
+    loadPositions();
+    loadDashboardStats();
+  }catch(e){
+    showMsgToast("⚠️ Impossible de contacter l'API");
+  }
+}
+let currentBot = null;
+async function loadBotSettings(){
+  const box = document.getElementById('botStatus');
+  try{
+    const res = await fetch(API + '/bot/instances', { headers:{ Authorization: 'Bearer ' + tokens.accessToken } });
+    const bots = await res.json();
+    currentBot = bots.find(b=>b.symbol===currentSymbol) || null;
+    if(!currentBot){
+      document.getElementById('botEnabledToggle').checked = false;
+      box.textContent = `Pas encore configuré pour ${currentSymbol} — réglez les paramètres et activez pour créer le bot.`;
+      return;
+    }
+    document.getElementById('botEnabledToggle').checked = !!currentBot.enabled;
+    document.getElementById('botMinConfidence').value = currentBot.minConfidence;
+    document.getElementById('botRiskPercent').value = currentBot.riskPercent;
+    renderBotStatus();
+  }catch(e){
+    box.textContent = "Impossible de charger l'état du bot";
+  }
+}
+function renderBotStatus(){
+  if(!currentBot) return;
+  const box = document.getElementById('botStatus');
+  const parts = [];
+  parts.push(currentBot.enabled ? '🟢 Actif — évalué toutes les minutes côté serveur' : '⚪ Inactif');
+  if(currentBot.lastRunAt) parts.push(`Dernière évaluation : ${new Date(currentBot.lastRunAt).toLocaleTimeString('fr-FR')}`);
+  if(currentBot.lastSignalAt) parts.push(`Dernier trade auto : ${currentBot.lastSignalSide==='buy'?'ACHAT':'VENTE'} à ${new Date(currentBot.lastSignalAt).toLocaleTimeString('fr-FR')}`);
+  if(currentBot.lastError) parts.push(`⚠️ Dernière erreur : ${currentBot.lastError}`);
+  box.innerHTML = parts.join(' · ');
+}
+async function saveBotSettings(){
+  try{
+    const minConfidence = parseInt(document.getElementById('botMinConfidence').value, 10);
+    const riskPercent = parseFloat(document.getElementById('botRiskPercent').value);
+    const res = await fetch(API + '/bot/instances', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization: 'Bearer ' + tokens.accessToken },
+      body: JSON.stringify({ symbol: currentSymbol, timeframe:'15m', higherTimeframe:'4h', minConfidence, riskPercent })
+    });
+    currentBot = await res.json();
+    if(!res.ok){ showMsgToast('❌ ' + (currentBot.message || 'Erreur')); return; }
+    showMsgToast('✅ Paramètres du bot enregistrés');
+    renderBotStatus();
+  }catch(e){
+    showMsgToast("⚠️ Impossible de contacter l'API");
+  }
+}
+async function toggleBot(enabled){
+  try{
+    if(!currentBot){
+      // Pas encore créé : on le crée avec les valeurs affichées avant de l'activer.
+      await saveBotSettings();
+    }
+    const res = await fetch(API + '/bot/instances/' + currentBot.id + '/toggle', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization: 'Bearer ' + tokens.accessToken },
+      body: JSON.stringify({ enabled })
+    });
+    currentBot = await res.json();
+    if(!res.ok){ showMsgToast('❌ ' + (currentBot.message || 'Erreur')); document.getElementById('botEnabledToggle').checked = !enabled; return; }
+    showMsgToast(enabled ? '🟢 Mode automatique activé — le serveur tradera seul sans validation' : '⚪ Mode automatique désactivé');
+    renderBotStatus();
+  }catch(e){
+    showMsgToast("⚠️ Impossible de contacter l'API");
+    document.getElementById('botEnabledToggle').checked = !enabled;
+  }
+}
+async function loadKillSwitch(){
+  const box = document.getElementById('killSwitchStatus');
+  try{
+    const res = await fetch(API + '/risk/kill-switch', { headers:{ Authorization: 'Bearer ' + tokens.accessToken } });
+    const data = await res.json();
+    document.getElementById('killSwitchToggle').checked = !!data.enabled;
+    box.textContent = data.enabled
+      ? `🔴 Trading suspendu${data.reason ? ' — ' + data.reason : ''}`
+      : '🟢 Trading actif — aucune restriction';
+  }catch(e){
+    box.textContent = "Impossible de charger l'état du kill switch";
+  }
+}
+async function loadRiskLimits(){
+  try{
+    const res = await fetch(API + '/risk/limits', { headers:{ Authorization: 'Bearer ' + tokens.accessToken } });
+    const data = await res.json();
+    document.getElementById('limitDailyLoss').value = data.maxDailyLossPercent;
+    document.getElementById('limitDrawdown').value = data.maxDrawdownPercent;
+  }catch(e){}
+}
+async function saveRiskLimits(){
+  try{
+    const maxDailyLossPercent = parseFloat(document.getElementById('limitDailyLoss').value);
+    const maxDrawdownPercent = parseFloat(document.getElementById('limitDrawdown').value);
+    const res = await fetch(API + '/risk/limits', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization: 'Bearer ' + tokens.accessToken },
+      body: JSON.stringify({ maxDailyLossPercent, maxDrawdownPercent })
+    });
+    const data = await res.json();
+    if(!res.ok){ showMsgToast('❌ ' + (data.message || 'Erreur')); return; }
+    showMsgToast('✅ Limites de risque mises à jour');
+    loadRiskStatus();
+  }catch(e){
+    showMsgToast("⚠️ Impossible de contacter l'API");
+  }
+}
+async function loadRiskStatus(){
+  try{
+    const res = await fetch(API + '/risk/status', { headers:{ Authorization: 'Bearer ' + tokens.accessToken } });
+    const s = await res.json();
+    document.getElementById('riskEquity').textContent = s.currentEquity.toFixed(2) + ' USDT';
+    document.getElementById('riskPeak').textContent = s.peakEquity.toFixed(2) + ' USDT';
+    const dd = document.getElementById('riskDrawdown');
+    dd.textContent = '-' + s.drawdownPct.toFixed(2) + ' %';
+    dd.className = 'value ' + (s.drawdownBreached ? '' : '');
+    dd.style.color = s.drawdownBreached ? 'var(--red)' : '';
+    const dl = document.getElementById('riskDailyLoss');
+    dl.textContent = '-' + s.dailyLossPct.toFixed(2) + ' %';
+    dl.style.color = s.dailyLossBreached ? 'var(--red)' : '';
+  }catch(e){}
+}
+async function toggleKillSwitch(enabled){
+  const box = document.getElementById('killSwitchStatus');
+  let reason;
+  if(enabled){ reason = prompt('Raison de la suspension (visible par les utilisateurs) :', 'Maintenance') || 'Suspendu par un admin'; }
+  try{
+    const res = await fetch(API + '/risk/kill-switch', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization: 'Bearer ' + tokens.accessToken },
+      body: JSON.stringify({ enabled, reason })
+    });
+    const data = await res.json();
+    if(!res.ok){ showMsgToast('❌ ' + (data.message || 'Erreur')); document.getElementById('killSwitchToggle').checked = !enabled; return; }
+    box.textContent = data.enabled
+      ? `🔴 Trading suspendu${data.reason ? ' — ' + data.reason : ''}`
+      : '🟢 Trading actif — aucune restriction';
+    showMsgToast(enabled ? '🔴 Kill switch activé — tout nouveau trade est bloqué côté serveur' : '🟢 Kill switch désactivé');
+  }catch(e){
+    showMsgToast("⚠️ Impossible de contacter l'API");
+    document.getElementById('killSwitchToggle').checked = !enabled;
+  }
+}
+
+const VIEWS = ['dashboard','trading','portefeuille','bot','backtest','admin'];
+const NAV_IDS = {dashboard:'navDashboard',trading:'navTrading',portefeuille:'navPortefeuille',bot:'navBot',backtest:'navBacktest',admin:'navAdmin'};
+function showView(name){
+  VIEWS.forEach(v=>{
+    document.getElementById('view-'+v).classList.toggle('hidden', v!==name);
+    document.getElementById(NAV_IDS[v]).classList.toggle('active', v===name);
+  });
+  if(name==='trading'){ setTimeout(loadRealCandles, 30); loadPositions(); loadOpenOrders(); }
+  if(name==='admin'){ loadAdminStats(); loadAdminUsers(); loadAdminDeposits(); loadAdminWithdrawals(); loadAdminBots(); loadAdminAuditLogs(); loadKillSwitch(); loadRiskLimits(); loadRiskStatus(); }
+  if(name==='portefeuille') loadWalletView();
+  if(name==='dashboard') loadDashboardStats();
+  if(name==='bot'){ loadSignal(); loadBotSettings(); }
+}
+
+/* ---- Trading (aperçu) ---- */
+let orderSide = 'buy';
+let orderType = 'market';
+function setSide(side){
+  orderSide = side;
+  document.getElementById('tabBuy').classList.toggle('active', side==='buy');
+  document.getElementById('tabSell').classList.toggle('active', side==='sell');
+  const btn = document.getElementById('orderBtn');
+  btn.textContent = (side==='buy' ? 'Acheter' : 'Vendre') + ' ' + baseAsset();
+  btn.style.background = side==='buy' ? 'linear-gradient(135deg,#26d99a,#1bb583)' : 'linear-gradient(135deg,#ef5350,#c62828)';
+}
+function setOrderType(type, el){
+  orderType = type;
+  document.querySelectorAll('.mini-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  const priceInput = document.getElementById('orderPrice');
+  priceInput.disabled = (type==='market');
+  if(type==='limit' && tradingCandles.length) priceInput.value = tradingCandles[tradingCandles.length-1].close;
+}
+function updateOrderTotal(){
+  const qty = parseFloat(document.getElementById('orderQty').value) || 0;
+  const price = orderType==='limit'
+    ? (parseFloat(document.getElementById('orderPrice').value) || 0)
+    : (tradingCandles.length ? tradingCandles[tradingCandles.length-1].close : 6.842);
+  document.getElementById('orderTotal').textContent = (qty*price).toFixed(2) + ' USDT';
+}
+async function placeOrder(){
+  const qty = parseFloat(document.getElementById('orderQty').value);
+  const price = parseFloat(document.getElementById('orderPrice').value);
+  const btn = document.getElementById('orderBtn');
+  if(!qty || qty <= 0){ showMsgToast('⚠️ Quantité invalide'); return; }
+  if(orderType==='limit' && (!price || price <= 0)){ showMsgToast('⚠️ Prix limite invalide'); return; }
+  btn.disabled = true; const original = btn.textContent; btn.textContent = 'Envoi en cours…';
+  try{
+    const body = { symbol: currentSymbol, side: orderSide, type: orderType, qty };
+    if(orderType==='limit') body.price = price;
+    const res = await fetch(API + '/trading/orders', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization: 'Bearer ' + tokens.accessToken },
+      body: JSON.stringify(body)
+    });
+    const order = await res.json();
+    if(!res.ok){ showMsgToast('❌ ' + (order.message || 'Erreur')); return; }
+    if(order.status === 'filled'){
+      showMsgToast(`✅ Ordre ${orderSide==='buy'?'d\'achat':'de vente'} exécuté sur Binance testnet — ${order.filledQty} ${baseAsset()} @ ${order.avgPrice}`);
+      loadDashboardStats();
+    } else if(order.status === 'open'){
+      showMsgToast(`🕒 Ordre limite posé sur Binance testnet — en attente que le prix atteigne ${price}`);
+      loadOpenOrders();
+    } else {
+      showMsgToast('⚠️ Ordre échoué : ' + (order.errorMessage || 'raison inconnue'));
+    }
+  }catch(e){
+    showMsgToast("⚠️ Impossible de contacter l'API");
+  }finally{
+    btn.disabled = false; btn.textContent = original;
+  }
+}
+async function loadOpenOrders(){
+  const box = document.getElementById('openOrdersBox');
+  try{
+    const res = await fetch(API + '/trading/orders', { headers:{ Authorization: 'Bearer ' + tokens.accessToken } });
+    const orders = await res.json();
+    const open = orders.filter(o=>o.status==='pending' || o.status==='open');
+    if(!open.length){ box.innerHTML = '<div class="empty-state">Aucun ordre ouvert pour l\'instant.</div>'; return; }
+    box.innerHTML = `<table class="dt-table"><thead><tr><th>Sens</th><th>Type</th><th>Qté</th><th>Prix limite</th><th>Statut</th><th></th></tr></thead><tbody>
+      ${open.map(o=>`<tr>
+        <td><span class="tag-pill ${o.side==='buy'?'green':''}">${o.side==='buy'?'Achat':'Vente'}</span></td>
+        <td>${o.type==='limit'?'Limite':'Marché'}</td>
+        <td>${o.qty}</td>
+        <td>${o.price ?? '—'}</td>
+        <td>${o.status}</td>
+        <td style="display:flex;gap:6px">
+          <button class="btn btn-ghost" style="padding:5px 10px;font-size:11px" onclick="syncOpenOrder('${o.id}')">Sync</button>
+          <button class="btn btn-ghost" style="padding:5px 10px;font-size:11px" onclick="cancelOpenOrder('${o.id}')">Annuler</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  }catch(e){
+    box.innerHTML = '<div class="empty-state">Impossible de charger — API injoignable.</div>';
+  }
+}
+async function syncOpenOrder(id){
+  try{
+    const res = await fetch(API + '/trading/orders/' + id + '/sync', { method:'POST', headers:{ Authorization: 'Bearer ' + tokens.accessToken } });
+    const order = await res.json();
+    if(!res.ok){ showMsgToast('❌ ' + (order.message || 'Erreur')); return; }
+    showMsgToast(order.status==='filled' ? '✅ Ordre rempli' : `🕒 Toujours en attente (statut exchange: ${order.exchangeStatus})`);
+    loadOpenOrders();
+    loadDashboardStats();
+  }catch(e){
+    showMsgToast("⚠️ Impossible de contacter l'API");
+  }
+}
+async function cancelOpenOrder(id){
+  try{
+    const res = await fetch(API + '/trading/orders/' + id, { method:'DELETE', headers:{ Authorization: 'Bearer ' + tokens.accessToken } });
+    const order = await res.json();
+    if(!res.ok){ showMsgToast('❌ ' + (order.message || 'Erreur')); return; }
+    showMsgToast('✅ Ordre annulé');
+    loadOpenOrders();
+  }catch(e){
+    showMsgToast("⚠️ Impossible de contacter l'API");
+  }
+}
+async function runRealBacktest(){
+  const btn = document.getElementById('btRunBtn');
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Calcul en cours…';
+  const resultCard = document.getElementById('backtestResult');
+  try{
+    const timeframe = document.getElementById('btTimeframe').value;
+    const limit = parseInt(document.getElementById('btLimit').value, 10) || 500;
+    const minConfidence = parseInt(document.getElementById('btMinConfidence').value, 10) || 60;
+    const res = await fetch(API + '/backtest/run', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization: 'Bearer ' + tokens.accessToken },
+      body: JSON.stringify({ symbol: currentSymbol, timeframe, limit, minConfidence })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.message || 'Erreur backtest');
+    resultCard.style.display = 'block';
+    document.getElementById('btMeta').textContent = `${data.symbol} · ${timeframe} · ${data.candleCount} bougies`;
+    document.getElementById('btWinRate').textContent = data.totalTrades ? data.winRate.toFixed(1)+' %' : '—';
+    document.getElementById('btWinRate').className = 'value ' + (data.winRate >= 50 ? 'green' : '');
+    document.getElementById('btProfitFactor').textContent = isFinite(data.profitFactor) ? data.profitFactor.toFixed(2) : '∞';
+    document.getElementById('btDrawdown').textContent = '-' + Math.abs(data.maxDrawdownPct).toFixed(2) + ' %';
+    document.getElementById('btAvgR').textContent = (data.averageR >= 0 ? '+' : '') + data.averageR.toFixed(2) + 'R';
+    document.getElementById('btTotalTrades').textContent = data.totalTrades;
+    document.getElementById('btEquity').textContent = data.endingEquity.toFixed(2) + ' USDT';
+
+    drawEquityCurve(document.getElementById('btEquityChart'), data.equityCurve);
+
+    const table = document.getElementById('btTradesTable');
+    if(!data.trades.length){
+      table.innerHTML = '<div class="empty-state">Aucun trade déclenché sur cette période (confiance min trop élevée ou marché sans setup).</div>';
+    } else {
+      table.innerHTML = `<table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr style="color:var(--sub);text-align:left;text-transform:uppercase;font-size:10.5px;letter-spacing:.04em">
+          <th style="padding:6px 8px">Sens</th><th style="padding:6px 8px">Entrée</th><th style="padding:6px 8px">Sortie</th>
+          <th style="padding:6px 8px">Issue</th><th style="padding:6px 8px">R</th><th style="padding:6px 8px">P&L</th>
+        </tr></thead><tbody>
+        ${data.trades.map(t=>`
+          <tr style="border-top:1px solid rgba(255,255,255,.05)">
+            <td style="padding:6px 8px"><span class="tag-pill ${t.side==='buy'?'green':''}" style="font-size:10.5px;padding:2px 8px">${t.side==='buy'?'LONG':'SHORT'}</span></td>
+            <td style="padding:6px 8px">${t.entry.toFixed(4)}</td>
+            <td style="padding:6px 8px">${t.exit.toFixed(4)}</td>
+            <td style="padding:6px 8px;color:${t.outcome==='tp'?'var(--green)':'var(--red)'}">${t.outcome==='tp'?'TP':'SL'}</td>
+            <td style="padding:6px 8px">${t.rMultiple>=0?'+':''}${t.rMultiple.toFixed(2)}R</td>
+            <td style="padding:6px 8px;color:${t.pnl>=0?'var(--green)':'var(--red)'}">${t.pnl>=0?'+':''}${t.pnl.toFixed(2)} USDT</td>
+          </tr>`).join('')}
+        </tbody></table>`;
+    }
+  }catch(e){
+    showMsgToast('⚠️ ' + (e.message || "Impossible de contacter l'API"));
+  }finally{
+    btn.disabled = false; btn.textContent = original;
+  }
+}
+function drawEquityCurve(canvas, curve){
+  if(!canvas || !curve || !curve.length) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.max(300, rect.width) * dpr;
+  canvas.height = 140 * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const w = rect.width, h = 140;
+  ctx.clearRect(0,0,w,h);
+  const values = curve.map(p=>p.equity);
+  const max = Math.max(...values), min = Math.min(...values);
+  const pad = (max-min)*0.1 || 1;
+  const yMax = max+pad, yMin = min-pad;
+  const x = i => (i/(values.length-1)) * w;
+  const y = v => h - ((v-yMin)/(yMax-yMin))*h;
+  ctx.strokeStyle = 'rgba(255,255,255,.06)';
+  for(let i=1;i<4;i++){ const gy=(h/4)*i; ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(w,gy); ctx.stroke(); }
+  const up = values[values.length-1] >= values[0];
+  ctx.strokeStyle = up ? '#26d99a' : '#ef5350';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  values.forEach((v,i)=>{ const px=x(i), py=y(v); i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); });
+  ctx.stroke();
+  ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+  ctx.fillStyle = up ? 'rgba(38,217,154,.08)' : 'rgba(239,83,80,.08)';
+  ctx.fill();
+}
+function showMsgToast(text){
+  const el = document.getElementById('toast');
+  el.textContent = text;
+  el.style.display = 'block';
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>{ el.style.display = 'none'; }, 3000);
+}
+
+/* ---- Admin : vraie liste d'utilisateurs via l'API ---- */
+async function adminApi(path, opts){
+  const res = await fetch(API + path, { ...opts, headers:{ 'Content-Type':'application/json', Authorization: 'Bearer ' + tokens.accessToken, ...(opts&&opts.headers||{}) } });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : (data.message || 'Erreur'));
+  return data;
+}
+async function loadAdminStats(){
+  const box = document.getElementById('adminStatsBox');
+  try{
+    const s = await adminApi('/admin/stats');
+    box.innerHTML = `
+      <div class="stat"><div class="label">Utilisateurs</div><div class="value">${s.totalUsers}</div></div>
+      <div class="stat"><div class="label">Ordres remplis</div><div class="value">${s.totalFilledOrders} / ${s.totalOrders}</div></div>
+      <div class="stat"><div class="label">Volume total</div><div class="value">${s.totalVolumeUsdt.toFixed(2)} USDT</div></div>
+      <div class="stat"><div class="label">Positions ouvertes</div><div class="value">${s.totalOpenPositions}</div></div>
+      <div class="stat"><div class="label">Bots actifs</div><div class="value">${s.totalActiveBots}</div></div>
+      <div class="stat"><div class="label">Dépôts/retraits en attente</div><div class="value">${s.pendingDeposits} / ${s.pendingWithdrawals}</div></div>
+      <div class="stat"><div class="label">Commissions perçues</div><div class="value green">${s.totalCommissionsEarned.toFixed(4)} USDT</div></div>
+    `;
+  }catch(e){
+    box.innerHTML = '<div class="empty-state">' + e.message + '</div>';
+  }
+}
+async function loadAdminUsers(){
+  const box = document.getElementById('adminUsersBox');
+  box.innerHTML = '<div class="empty-state">Chargement…</div>';
+  try{
+    const users = await adminApi('/admin/users');
+    if(!users.length){ box.innerHTML = '<div class="empty-state">Aucun utilisateur.</div>'; return; }
+    box.innerHTML = `<table class="dt-table"><thead><tr><th>Email</th><th>Rôle</th><th>Statut</th><th>Tier</th><th>Parrainage</th><th>Créé le</th><th></th></tr></thead><tbody>
+      ${users.map(u=>`<tr>
+        <td>${u.email}</td>
+        <td><span class="tag-pill ${u.role==='admin'?'green':''}">${u.role}</span></td>
+        <td><span class="tag-pill ${u.status==='active'?'green':''}">${u.status}</span></td>
+        <td><span class="tag-pill ${u.subscriptionTier==='pro'?'green':''}">${u.subscriptionTier}</span></td>
+        <td style="font-family:'SF Mono',Consolas,monospace;font-size:11px">${u.referralCode}${u.referredByCode?' · via '+u.referredByCode:''}</td>
+        <td>${new Date(u.createdAt).toLocaleDateString('fr-FR')}</td>
+        <td style="display:flex;gap:5px;flex-wrap:wrap">
+          <button class="btn btn-ghost" style="padding:4px 8px;font-size:10.5px" onclick="adminSetUserStatus('${u.id}','${u.status==='active'?'suspended':'active'}')">${u.status==='active'?'Suspendre':'Réactiver'}</button>
+          <button class="btn btn-ghost" style="padding:4px 8px;font-size:10.5px" onclick="adminSetUserRole('${u.id}','${u.role==='admin'?'user':'admin'}')">${u.role==='admin'?'Rétrograder':'Promouvoir admin'}</button>
+          <button class="btn btn-ghost" style="padding:4px 8px;font-size:10.5px" onclick="adminSetUserTier('${u.id}','${u.subscriptionTier==='pro'?'free':'pro'}')">${u.subscriptionTier==='pro'?'Repasser free':'Passer pro'}</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  }catch(e){
+    box.innerHTML = '<div class="empty-state">' + e.message + '</div>';
+  }
+}
+async function adminSetUserStatus(id, status){
+  try{ await adminApi('/admin/users/'+id+'/status', {method:'PATCH', body:JSON.stringify({status})}); showMsgToast('✅ Statut mis à jour'); loadAdminUsers(); }
+  catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function adminSetUserRole(id, role){
+  try{ await adminApi('/admin/users/'+id+'/role', {method:'PATCH', body:JSON.stringify({role})}); showMsgToast('✅ Rôle mis à jour'); loadAdminUsers(); }
+  catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function adminSetUserTier(id, subscriptionTier){
+  try{ await adminApi('/admin/users/'+id+'/subscription', {method:'PATCH', body:JSON.stringify({subscriptionTier})}); showMsgToast('✅ Tier mis à jour'); loadAdminUsers(); }
+  catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function loadAdminDeposits(){
+  const box = document.getElementById('adminDepositsBox');
+  try{
+    const deposits = await adminApi('/admin/deposits?status=pending');
+    if(!deposits.length){ box.innerHTML = '<div class="empty-state">Aucun dépôt en attente.</div>'; return; }
+    box.innerHTML = `<table class="dt-table"><thead><tr><th>Utilisateur</th><th>Devise</th><th>Montant</th><th>Référence</th><th>Date</th><th></th></tr></thead><tbody>
+      ${deposits.map(d=>`<tr>
+        <td>${d.user.email}</td><td>${d.currency}</td><td>${d.amount}</td><td>${d.reference||'—'}</td><td>${new Date(d.createdAt).toLocaleString('fr-FR')}</td>
+        <td style="display:flex;gap:5px"><button class="btn btn-primary" style="padding:4px 10px;font-size:10.5px" onclick="adminCreditDeposit('${d.id}')">Créditer</button><button class="btn btn-ghost" style="padding:4px 10px;font-size:10.5px" onclick="adminRejectDeposit('${d.id}')">Rejeter</button></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  }catch(e){ box.innerHTML = '<div class="empty-state">' + e.message + '</div>'; }
+}
+async function adminCreditDeposit(id){
+  try{ await adminApi('/admin/deposits/'+id+'/credit', {method:'POST'}); showMsgToast('✅ Dépôt crédité'); loadAdminDeposits(); loadAdminStats(); }
+  catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function adminRejectDeposit(id){
+  try{ await adminApi('/admin/deposits/'+id+'/reject', {method:'POST'}); showMsgToast('✅ Dépôt rejeté'); loadAdminDeposits(); }
+  catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function loadAdminWithdrawals(){
+  const box = document.getElementById('adminWithdrawalsBox');
+  try{
+    const withdrawals = await adminApi('/admin/withdrawals?status=pending');
+    if(!withdrawals.length){ box.innerHTML = '<div class="empty-state">Aucun retrait en attente.</div>'; return; }
+    box.innerHTML = `<table class="dt-table"><thead><tr><th>Utilisateur</th><th>Devise</th><th>Montant</th><th>Destination</th><th>Date</th><th></th></tr></thead><tbody>
+      ${withdrawals.map(w=>`<tr>
+        <td>${w.user.email}</td><td>${w.currency}</td><td>${w.amount}</td><td>${w.destination}</td><td>${new Date(w.createdAt).toLocaleString('fr-FR')}</td>
+        <td style="display:flex;gap:5px"><button class="btn btn-primary" style="padding:4px 10px;font-size:10.5px" onclick="adminApproveWithdrawal('${w.id}')">Approuver</button><button class="btn btn-ghost" style="padding:4px 10px;font-size:10.5px" onclick="adminRejectWithdrawal('${w.id}')">Rejeter</button></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  }catch(e){ box.innerHTML = '<div class="empty-state">' + e.message + '</div>'; }
+}
+async function adminApproveWithdrawal(id){
+  try{ await adminApi('/admin/withdrawals/'+id+'/approve', {method:'POST'}); showMsgToast('✅ Retrait approuvé (envoyé)'); loadAdminWithdrawals(); loadAdminStats(); }
+  catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function adminRejectWithdrawal(id){
+  try{ await adminApi('/admin/withdrawals/'+id+'/reject', {method:'POST'}); showMsgToast('✅ Retrait rejeté — fonds déverrouillés'); loadAdminWithdrawals(); }
+  catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function loadAdminBots(){
+  const box = document.getElementById('adminBotsBox');
+  try{
+    const bots = await adminApi('/admin/bots');
+    if(!bots.length){ box.innerHTML = '<div class="empty-state">Aucun bot configuré.</div>'; return; }
+    box.innerHTML = `<table class="dt-table"><thead><tr><th>Utilisateur</th><th>Symbole</th><th>Statut</th><th>Confiance min</th><th>Risque</th><th>Dernier trade</th></tr></thead><tbody>
+      ${bots.map(b=>`<tr>
+        <td>${b.user.email}</td><td>${b.symbol}</td><td><span class="tag-pill ${b.enabled?'green':''}">${b.enabled?'actif':'inactif'}</span></td><td>${b.minConfidence}%</td><td>${b.riskPercent}%</td>
+        <td>${b.lastSignalAt ? new Date(b.lastSignalAt).toLocaleString('fr-FR') + ' ('+b.lastSignalSide+')' : '—'}</td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  }catch(e){ box.innerHTML = '<div class="empty-state">' + e.message + '</div>'; }
+}
+async function loadAdminAuditLogs(){
+  const box = document.getElementById('adminAuditBox');
+  try{
+    const logs = await adminApi('/admin/audit-logs?limit=50');
+    if(!logs.length){ box.innerHTML = '<div class="empty-state">Aucune entrée pour l\'instant.</div>'; return; }
+    box.innerHTML = `<table class="dt-table"><thead><tr><th>Action</th><th>Acteur</th><th>Cible</th><th>Date</th></tr></thead><tbody>
+      ${logs.map(l=>`<tr><td><code style="font-size:11px">${l.action}</code></td><td>${l.actorEmail||'—'}</td><td style="font-size:11px">${l.target||'—'}</td><td>${new Date(l.createdAt).toLocaleString('fr-FR')}</td></tr>`).join('')}
+    </tbody></table>`;
+  }catch(e){ box.innerHTML = '<div class="empty-state">' + e.message + '</div>'; }
+}
+
+async function testExchange(){
+  const pre = document.getElementById('exchangeResult');
+  pre.classList.remove('hidden'); pre.textContent = 'Chargement...';
+  try{
+    const res = await fetch(API + '/exchange/test-connection', { headers:{ Authorization: 'Bearer ' + tokens.accessToken } });
+    pre.textContent = JSON.stringify(await res.json(), null, 2);
+  }catch(e){ pre.textContent = 'Erreur réseau.'; }
+}
+
+if(tokens) enterApp();
+</script>
+</body>
+</html>
