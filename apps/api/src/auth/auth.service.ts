@@ -15,6 +15,7 @@ import { WalletService } from '../wallet/wallet.service';
 import { TwoFactorService } from './two-factor.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { isBlockedByPersonalMode, isPersonalMode } from '../common/personal-mode.util';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -29,6 +30,9 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
+    if (isPersonalMode(this.config)) {
+      throw new ForbiddenException('Inscriptions fermées : plateforme à usage personnel');
+    }
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) {
       throw new ConflictException('Un compte existe déjà avec cet email');
@@ -65,6 +69,9 @@ export class AuthService {
 
     if (user.status !== 'active') {
       throw new UnauthorizedException('Compte suspendu');
+    }
+    if (await isBlockedByPersonalMode(this.config, this.prisma, user.role)) {
+      throw new UnauthorizedException('Accès réservé au propriétaire de la plateforme');
     }
 
     if (user.twoFaEnabled) {
@@ -121,6 +128,9 @@ export class AuthService {
     }
 
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: payload.sub } });
+    if (await isBlockedByPersonalMode(this.config, this.prisma, user.role)) {
+      throw new UnauthorizedException('Accès réservé au propriétaire de la plateforme');
+    }
 
     // Rotation : on révoque l'ancien refresh token et on en émet un nouveau.
     await this.prisma.refreshToken.update({

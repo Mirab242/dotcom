@@ -271,7 +271,7 @@
     <div class="glow glow2"></div>
     <div class="hero">
       <div>
-        <div class="tag"><span class="pulse"></span> Plateforme complète — testnet, aucun fonds réel engagé</div>
+        <div class="tag" id="heroTag"><span class="pulse"></span> <span id="heroTagText">Plateforme complète — testnet, aucun fonds réel engagé</span></div>
         <h1>Tradez <em>DOT/USDT</em> avec un moteur qui analyse le marché pour vous</h1>
         <p>Manuel, assisté par signaux ou entièrement automatique — avec gestion du risque intégrée à chaque ordre. Le moteur combine tendance, structure de marché, RSI, MACD, EMA, ATR et volume.</p>
         <div class="ctas">
@@ -386,7 +386,10 @@
         <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Menu">☰</button>
         <div>Bonjour, <strong id="uEmail">—</strong></div>
       </div>
-      <span class="role-pill user" id="uRolePill">user</span>
+      <div style="display:flex;gap:10px;align-items:center">
+        <span class="tag-pill" id="modeBadge"></span>
+        <span class="role-pill user" id="uRolePill">user</span>
+      </div>
     </div>
     <main class="content">
 
@@ -823,6 +826,25 @@ function renderTicker(){
 }
 renderTicker();
 setInterval(renderTicker, 4000);
+
+/* ---------- Configuration publique : mode personnel + testnet / LIVE ---------- */
+// Lue avant la connexion : en mode personnel l'inscription n'existe pas, et le mode (testnet ou
+// argent RÉEL) doit toujours être visible pour qu'on ne confonde jamais les deux.
+async function applyPublicConfig(){
+  try{
+    const cfg = await (await fetch(API + '/config')).json();
+    const live = cfg.mode === 'live';
+    const badge = document.getElementById('modeBadge');
+    badge.textContent = live ? '🔴 LIVE — argent réel' : '🧪 Testnet';
+    badge.className = 'tag-pill ' + (live ? 'red' : 'gold');
+    if(live) document.getElementById('heroTagText').textContent = 'Mode LIVE — les ordres engagent de l\'argent réel';
+    if(cfg.personalMode){
+      document.querySelectorAll("[onclick*=\"openModal('register')\"]").forEach(el => { el.style.display = 'none'; });
+      document.getElementById('tabRegister').style.display = 'none';
+    }
+  }catch(e){ /* config indisponible : on garde l'affichage par défaut */ }
+}
+applyPublicConfig();
 
 /* ---------- Prix live simulé ---------- */
 let livePrice = 6.842;

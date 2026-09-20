@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../../prisma/prisma.service';
+import { isBlockedByPersonalMode } from '../../common/personal-mode.util';
 
 export interface JwtPayload {
   sub: string; // userId
@@ -13,7 +14,7 @@ export interface JwtPayload {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
-    config: ConfigService,
+    private config: ConfigService,
     private prisma: PrismaService,
   ) {
     super({
@@ -36,6 +37,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
     if (!user || user.status !== 'active') {
       throw new UnauthorizedException('Compte suspendu ou introuvable');
+    }
+    // Mode personnel : un jeton encore valide d'un compte non-admin ne doit plus rien ouvrir.
+    if (await isBlockedByPersonalMode(this.config, this.prisma, user.role)) {
+      throw new UnauthorizedException('Accès réservé au propriétaire de la plateforme');
     }
     return { userId: payload.sub, email: payload.email, role: user.role };
   }
