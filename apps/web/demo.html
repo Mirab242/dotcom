@@ -219,6 +219,30 @@
   @media(max-width:480px){
     .stats{grid-template-columns:1fr !important}
   }
+
+  /* ============ CHALLENGES (prop firm) ============ */
+  .ch-plans{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+  .ch-plan{background:var(--surf2);border:1px solid var(--border);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:6px}
+  .ch-plan .ch-name{font-size:13px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.05em}
+  .ch-plan .ch-size{font-size:24px;font-weight:800}
+  .ch-plan ul{list-style:none;font-size:12px;color:var(--sub);line-height:1.8;margin:6px 0 10px}
+  .ch-plan .btn{margin-top:auto}
+  .ch-fee{font-size:13px;font-weight:700;color:var(--gold)}
+  .ch-meters{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:16px 0}
+  .ch-meter .ch-mlabel{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-bottom:6px}
+  .ch-meter .ch-mlabel b{color:var(--text)}
+  .ch-bar{height:8px;background:var(--surf3);border-radius:8px;overflow:hidden}
+  .ch-bar > div{height:100%;border-radius:8px;background:var(--green);transition:width .3s}
+  .ch-bar.risk > div{background:var(--gold)}
+  .ch-bar.risk.danger > div{background:var(--red)}
+  .ch-order-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:end}
+  .ch-order-form input,.ch-order-form select{margin-bottom:0}
+  select.ch-select{width:100%;padding:11px 14px;background:var(--surf2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;outline:none}
+  .tag-pill.gold{background:#3a2f0f;color:var(--gold)}
+  .tag-pill.red{background:#3a1418;color:#ff8a8a}
+  .ch-account-row{cursor:pointer}
+  .ch-account-row:hover td{background:var(--surf2)}
+  .pnl-pos{color:var(--green)} .pnl-neg{color:var(--red)}
 </style>
 </head>
 <body>
@@ -352,6 +376,7 @@
     <div class="nav-item" id="navPortefeuille" onclick="showView('portefeuille')"><span class="idot"></span> Portefeuille <span class="soon live">Live</span></div>
     <div class="nav-item" id="navBot" onclick="showView('bot')"><span class="idot"></span> Bot IA <span class="soon live">Live</span></div>
     <div class="nav-item" id="navBacktest" onclick="showView('backtest')"><span class="idot"></span> Backtesting <span class="soon live">Live</span></div>
+    <div class="nav-item" id="navChallenges" onclick="showView('challenges')"><span class="idot"></span> Challenges <span class="soon live">Nouveau</span></div>
     <div class="nav-item" id="navAdmin" onclick="showView('admin')"><span class="idot"></span> Admin <span class="soon live">Live</span></div>
     <div class="bottom"><div class="nav-item" onclick="logout()">↩ Déconnexion</div></div>
   </aside>
@@ -380,6 +405,7 @@
           <div class="roadmap-item"><div class="check done">✓</div><div class="phase-name">Phase 3 — Risque & auto<div class="desc">Position sizing serveur, stop-loss obligatoire, kill switch, limites de perte/drawdown, mode automatique réel, positions surveillées en continu, fermeture auto au SL/TP, break-even + trailing stop</div></div></div>
           <div class="roadmap-item"><div class="check partial">~</div><div class="phase-name">Phase 4 — Admin, garde des fonds & monétisation<div class="desc">✅ Admin complet (stats, utilisateurs, journal d'audit, bots), dépôt/retrait semi-manuel avec validation admin (Option A §4.6bis), tiers free/pro qui gatent réellement le mode auto/risque/commission &nbsp;·&nbsp; ⏳ paiement réel (Stripe), garde de fonds réels — les deux attendent la décision légale (§8)</div></div></div>
           <div class="roadmap-item"><div class="check done">✓</div><div class="phase-name">Phase 7 — Extension multi-actifs<div class="desc">BTC/ETH/SOL en plus de DOT — mêmes signaux, mêmes ordres, même risk engine, même portefeuille, même WebSocket live, sans code dupliqué. Sélecteur d'actif dans Trading/Bot IA/Backtesting.</div></div></div>
+          <div class="roadmap-item"><div class="check partial">~</div><div class="phase-name">Phase 8 — Challenges « prop firm »<div class="desc">✅ Plans, comptes simulés aux prix réels, 2 phases + compte financé, règles automatiques (perte journalière, drawdown, objectif, durée), retraits de gains avec validation admin &nbsp;·&nbsp; ⏳ l'argent réel (frais et retraits) est derrière un interrupteur éteint tant que la décision légale (§8.3) n'est pas prise — en attendant, les challenges sont des comptes de démo gratuits</div></div></div>
         </div>
         <div class="card" id="adminCard" style="display:none">
           <h2>Outils admin — test infrastructure</h2>
@@ -579,6 +605,63 @@
       </div>
 
       <!-- ADMIN -->
+      <!-- CHALLENGES (prop firm) -->
+      <div id="view-challenges" class="hidden">
+        <div class="preview-note" id="chModeNote">Chargement…</div>
+
+        <div class="card" id="chPlansCard">
+          <h2>Choisir un challenge</h2>
+          <p style="color:var(--sub);font-size:12.5px;margin-bottom:16px">Tradez un capital <b>simulé</b> aux prix réels du marché. Atteignez l'objectif de profit en 2 phases sans dépasser les limites de perte, puis passez sur un compte <b>financé</b>. Aucun ordre n'est envoyé à l'exchange.</p>
+          <div id="chPlansBox" class="ch-plans"><div class="empty-state">Chargement…</div></div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h2 style="margin:0">Mes comptes de challenge</h2>
+            <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="loadChallengesView()">🔄 Rafraîchir</button>
+          </div>
+          <div id="chAccountsBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+
+        <div class="card hidden" id="chDetailCard">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+            <div>
+              <h2 style="margin:0 0 6px" id="chDetailTitle">Compte</h2>
+              <div id="chDetailBadges"></div>
+            </div>
+            <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="closeChallengeDetail()">✕ Fermer</button>
+          </div>
+          <div class="stats" id="chDetailStats" style="margin-top:16px;margin-bottom:0"></div>
+          <div class="ch-meters" id="chDetailMeters"></div>
+
+          <div id="chOrderBlock">
+            <h2 style="margin-top:8px">Nouvel ordre (achat au marché, simulé)</h2>
+            <div class="ch-order-form">
+              <div><label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Actif</label>
+                <select class="ch-select" id="chSymbol"><option>DOT/USDT</option><option>BTC/USDT</option><option>ETH/USDT</option><option>SOL/USDT</option></select></div>
+              <div><label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Quantité</label>
+                <input id="chQty" type="number" step="any" min="0" placeholder="ex: 500"></div>
+              <div><label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Stop-loss (obligatoire)</label>
+                <input id="chSl" type="number" step="any" min="0" placeholder="prix"></div>
+              <div><label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Take-profit (option)</label>
+                <input id="chTp" type="number" step="any" min="0" placeholder="prix"></div>
+              <button class="btn btn-primary" style="padding:11px" onclick="chPlaceOrder()">Acheter</button>
+            </div>
+            <p style="color:var(--sub);font-size:11.5px;margin-top:10px">Exécution au dernier prix du marché. Stop-loss obligatoire, risque max 3&nbsp;% de l'équité par trade, aucun levier. Les frais simulés sont de 0,1&nbsp;% par côté.</p>
+          </div>
+
+          <h2 style="margin-top:22px">Positions ouvertes</h2>
+          <div id="chOpenBox"></div>
+          <h2 style="margin-top:22px">Historique des trades</h2>
+          <div id="chClosedBox"></div>
+
+          <div id="chPayoutBlock">
+            <h2 style="margin-top:22px">Retrait des gains</h2>
+            <div id="chPayoutBox"></div>
+          </div>
+        </div>
+      </div>
+
       <div id="view-admin" class="hidden">
         <div class="card">
           <h2>Vue d'ensemble plateforme</h2>
@@ -620,6 +703,49 @@
             <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="loadAdminKyc()">🔄 Rafraîchir</button>
           </div>
           <div id="adminKycBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+        <div class="card">
+          <h2>Challenges — argent réel</h2>
+          <p style="color:var(--sub);font-size:12.5px;margin-bottom:14px">Tant que cet interrupteur est <b>éteint</b>, les challenges sont des comptes de démo gratuits (aucun frais, aucun retrait). L'allumer active les frais d'inscription et les retraits de gains : à ne faire qu'une fois le cadre légal tranché (§8.3 de l'architecture).</p>
+          <div id="adminChPaymentsBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h2 style="margin:0">Challenges — plans</h2>
+            <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="loadAdminChallengePlans()">🔄 Rafraîchir</button>
+          </div>
+          <p style="color:var(--sub);font-size:12.5px;margin-bottom:14px">Une modification ne s'applique qu'aux comptes créés <b>après</b> : les règles d'un compte sont figées à l'achat.</p>
+          <div id="adminChPlansBox"><div class="empty-state">Chargement…</div></div>
+          <h2 id="chPlanFormTitle" style="margin-top:20px">Nouveau plan</h2>
+          <div class="ch-order-form" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+            <div><label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Nom</label><input id="cpName" placeholder="ex: Starter"></div>
+            <div><label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Capital simulé (USDT)</label><input id="cpSize" type="number" value="10000"></div>
+            <div><label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Frais (USDT)</label><input id="cpFee" type="number" value="89"></div>
+            <div><label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Objectif phase 1 (%)</label><input id="cpT1" type="number" value="8"></div>
+            <div><label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Objectif phase 2 (%)</label><input id="cpT2" type="number" value="5"></div>
+            <div><label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Perte jour max (%)</label><input id="cpDaily" type="number" value="5"></div>
+            <div><label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Drawdown max (%)</label><input id="cpDd" type="number" value="10"></div>
+            <div><label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Jours de trading min</label><input id="cpDays" type="number" value="4"></div>
+            <div><label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Durée max phase 1 (j, vide = illimitée)</label><input id="cpMax1" type="number" value="30"></div>
+            <div><label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Durée max phase 2 (j, vide = illimitée)</label><input id="cpMax2" type="number" value="60"></div>
+            <div><label style="font-size:11px;color:var(--sub);display:block;margin-bottom:4px">Part du trader (%)</label><input id="cpSplit" type="number" value="80"></div>
+            <button class="btn btn-primary" style="padding:11px" id="cpSaveBtn" onclick="adminSaveChallengePlan()">Créer le plan</button>
+            <button class="btn btn-ghost hidden" style="padding:11px" id="cpCancelBtn" onclick="adminResetChallengePlanForm()">Annuler</button>
+          </div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h2 style="margin:0">Challenges — comptes</h2>
+            <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="loadAdminChallengeAccounts()">🔄 Rafraîchir</button>
+          </div>
+          <div id="adminChAccountsBox"><div class="empty-state">Chargement…</div></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h2 style="margin:0">Challenges — retraits de gains</h2>
+            <button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="loadAdminChallengePayouts()">🔄 Rafraîchir</button>
+          </div>
+          <div id="adminChPayoutsBox"><div class="empty-state">Chargement…</div></div>
         </div>
         <div class="card">
           <h2>Bots — tous utilisateurs</h2>
@@ -1367,15 +1493,16 @@ async function toggleKillSwitch(enabled){
   }
 }
 
-const VIEWS = ['dashboard','trading','portefeuille','bot','backtest','admin'];
-const NAV_IDS = {dashboard:'navDashboard',trading:'navTrading',portefeuille:'navPortefeuille',bot:'navBot',backtest:'navBacktest',admin:'navAdmin'};
+const VIEWS = ['dashboard','trading','portefeuille','bot','backtest','challenges','admin'];
+const NAV_IDS = {dashboard:'navDashboard',trading:'navTrading',portefeuille:'navPortefeuille',bot:'navBot',backtest:'navBacktest',challenges:'navChallenges',admin:'navAdmin'};
 function showView(name){
   VIEWS.forEach(v=>{
     document.getElementById('view-'+v).classList.toggle('hidden', v!==name);
     document.getElementById(NAV_IDS[v]).classList.toggle('active', v===name);
   });
   if(name==='trading'){ setTimeout(loadRealCandles, 30); loadPositions(); loadOpenOrders(); }
-  if(name==='admin'){ loadAdminStats(); loadAdminReconciliation(); loadAdminUsers(); loadAdminDeposits(); loadAdminWithdrawals(); loadAdminKyc(); loadAdminBots(); loadAdminAuditLogs(); loadKillSwitch(); loadRiskLimits(); loadRiskStatus(); }
+  if(name==='admin'){ loadAdminStats(); loadAdminReconciliation(); loadAdminUsers(); loadAdminDeposits(); loadAdminWithdrawals(); loadAdminKyc(); loadAdminBots(); loadAdminAuditLogs(); loadKillSwitch(); loadRiskLimits(); loadRiskStatus(); loadAdminChallenges(); }
+  if(name==='challenges') loadChallengesView();
   if(name==='portefeuille') loadWalletView();
   if(name==='dashboard') loadDashboardStats();
   if(name==='bot'){ loadSignal(); loadBotSettings(); }
@@ -1785,6 +1912,353 @@ async function adminRejectKyc(id){
   try{ await adminApi('/admin/kyc/'+id+'/reject', {method:'POST', body:JSON.stringify({reason})}); showMsgToast('✅ Demande rejetée'); loadAdminKyc(); loadAdminUsers(); }
   catch(e){ showMsgToast('❌ ' + e.message); }
 }
+/* ================= CHALLENGES (prop firm) ================= */
+const fmtN = (n, d=2) => Number(n).toLocaleString('fr-FR', {minimumFractionDigits:d, maximumFractionDigits:d});
+const CH_PHASE = {phase1:'Phase 1', phase2:'Phase 2', funded:'Financé'};
+const CH_FAIL = {max_daily_loss:'Perte journalière dépassée', max_total_drawdown:'Drawdown maximal dépassé', time_limit:'Durée maximale dépassée', admin:'Clôturé par un administrateur'};
+const CH_EXIT = {sl:'Stop-loss', tp:'Take-profit', manual:'Manuel', account_failed:'Compte clôturé'};
+let chSelectedId = null;
+let chPlansCache = {plans:[], paymentsEnabled:false};
+let chPollTimer = null;
+
+function chStatusPill(a){
+  if(a.status === 'failed') return '<span class="tag-pill red">Échoué</span>';
+  if(a.status === 'closed') return '<span class="tag-pill">Clôturé</span>';
+  if(a.phase === 'funded') return '<span class="tag-pill green">Financé</span>';
+  return '<span class="tag-pill gold">' + esc(CH_PHASE[a.phase] || a.phase) + '</span>';
+}
+function chPnlClass(v){ return v > 0 ? 'pnl-pos' : (v < 0 ? 'pnl-neg' : ''); }
+function chMeter(label, valueText, pct, risk){
+  const p = Math.max(0, Math.min(100, pct));
+  const cls = risk ? ('ch-bar risk' + (p >= 70 ? ' danger' : '')) : 'ch-bar';
+  return `<div class="ch-meter"><div class="ch-mlabel"><span>${esc(label)}</span><b>${esc(valueText)}</b></div><div class="${cls}"><div style="width:${p}%"></div></div></div>`;
+}
+
+async function loadChallengesView(){
+  try{
+    const [plansData, accounts] = await Promise.all([adminApi('/challenges/plans'), adminApi('/challenges/accounts')]);
+    chPlansCache = plansData;
+    document.getElementById('chModeNote').textContent = plansData.paymentsEnabled
+      ? '💳 Mode réel : les frais d\'inscription sont débités de votre wallet USDT, et les gains d\'un compte financé sont retirables.'
+      : '🧪 Mode démo : comptes gratuits, aucun frais et aucun retrait possible — l\'argent réel n\'est pas encore activé sur la plateforme.';
+
+    const plansBox = document.getElementById('chPlansBox');
+    plansBox.innerHTML = plansData.plans.length ? plansData.plans.map(p => `
+      <div class="ch-plan">
+        <div class="ch-name">${esc(p.name)}</div>
+        <div class="ch-size">${fmtN(p.accountSize, 0)} <span style="font-size:12px;color:var(--sub);font-weight:600">USDT simulés</span></div>
+        <div class="ch-fee">${plansData.paymentsEnabled ? 'Frais : ' + fmtN(p.feeAmount) + ' USDT' : 'Gratuit (démo)'}</div>
+        <ul>
+          <li>Objectif phase 1 : <b>${fmtN(p.phase1TargetPct, 1)} %</b></li>
+          <li>Objectif phase 2 : <b>${fmtN(p.phase2TargetPct, 1)} %</b></li>
+          <li>Perte journalière max : ${fmtN(p.maxDailyLossPct, 1)} %</li>
+          <li>Drawdown max : ${fmtN(p.maxTotalDrawdownPct, 1)} %</li>
+          <li>Jours de trading min : ${p.minTradingDays}</li>
+          <li>Part des gains : ${fmtN(p.profitSplitPct, 0)} %</li>
+        </ul>
+        <button class="btn btn-primary" style="padding:10px;font-size:12.5px" onclick="chStartAccount('${esc(p.id)}')">Démarrer</button>
+      </div>`).join('') : '<div class="empty-state">Aucun plan disponible pour le moment.</div>';
+
+    const box = document.getElementById('chAccountsBox');
+    if(!accounts.length){
+      box.innerHTML = '<div class="empty-state">Aucun compte de challenge — choisissez un plan ci-dessus pour commencer.</div>';
+    } else {
+      box.innerHTML = `<table class="dt-table"><thead><tr><th>Plan</th><th>Statut</th><th>Type</th><th>Équité</th><th>Progression</th><th></th></tr></thead><tbody>
+        ${accounts.map(a => {
+          const target = a.rules.profitTargetPct;
+          const prog = a.phase === 'funded' ? '—' : fmtN(Math.max(0, a.metrics.profitPct), 2) + ' / ' + fmtN(target, 1) + ' %';
+          return `<tr class="ch-account-row" onclick="chOpenDetail('${esc(a.id)}')">
+            <td>${esc(a.planName)} · ${fmtN(a.accountSize, 0)}</td>
+            <td>${chStatusPill(a)}</td>
+            <td>${a.isDemo ? '<span class="tag-pill">Démo</span>' : '<span class="tag-pill green">Réel</span>'}</td>
+            <td class="${chPnlClass(a.equity - a.accountSize)}">${fmtN(a.equity)} USDT</td>
+            <td>${prog}</td>
+            <td><button class="btn btn-ghost" style="padding:4px 10px;font-size:10.5px">Ouvrir</button></td>
+          </tr>`;
+        }).join('')}
+      </tbody></table>`;
+    }
+    if(chSelectedId) loadChallengeDetail(chSelectedId);
+    if(!chPollTimer) chPollTimer = setInterval(() => {
+      const visible = !document.getElementById('view-challenges').classList.contains('hidden');
+      if(visible && chSelectedId) loadChallengeDetail(chSelectedId);
+    }, 15000);
+  }catch(e){
+    document.getElementById('chAccountsBox').innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+  }
+}
+
+async function chStartAccount(planId){
+  const plan = chPlansCache.plans.find(p => p.id === planId);
+  if(!plan) return;
+  if(chPlansCache.paymentsEnabled && !confirm(`Démarrer « ${plan.name} » ?\n${fmtN(plan.feeAmount)} USDT seront débités de votre wallet.`)) return;
+  try{
+    const acc = await adminApi('/challenges/accounts', {method:'POST', body:JSON.stringify({planId})});
+    showMsgToast('✅ Compte de challenge créé');
+    chSelectedId = acc.id;
+    await loadChallengesView();
+    document.getElementById('chDetailCard').scrollIntoView({behavior:'smooth'});
+  }catch(e){ showMsgToast('❌ ' + e.message); }
+}
+
+async function chOpenDetail(id){
+  chSelectedId = id;
+  await loadChallengeDetail(id);
+  document.getElementById('chDetailCard').scrollIntoView({behavior:'smooth'});
+}
+function closeChallengeDetail(){
+  chSelectedId = null;
+  document.getElementById('chDetailCard').classList.add('hidden');
+}
+
+async function loadChallengeDetail(id){
+  let a;
+  try{ a = await adminApi('/challenges/accounts/' + id); }
+  catch(e){ showMsgToast('❌ ' + e.message); closeChallengeDetail(); return; }
+  if(chSelectedId !== id) return; // l'utilisateur a changé de compte pendant le chargement
+
+  document.getElementById('chDetailCard').classList.remove('hidden');
+  document.getElementById('chDetailTitle').textContent = a.planName + ' · ' + fmtN(a.accountSize, 0) + ' USDT';
+  document.getElementById('chDetailBadges').innerHTML =
+    chStatusPill(a) + ' ' + (a.isDemo ? '<span class="tag-pill">Démo</span>' : '<span class="tag-pill green">Réel</span>') +
+    (a.failReason ? ' <span class="tag-pill red">' + esc(CH_FAIL[a.failReason] || a.failReason) + '</span>' : '');
+
+  const eqPct = ((a.equity - a.accountSize) / a.accountSize) * 100;
+  document.getElementById('chDetailStats').innerHTML = `
+    <div class="stat"><div class="label">Équité</div><div class="value ${chPnlClass(eqPct)}">${fmtN(a.equity)}</div></div>
+    <div class="stat"><div class="label">Solde réalisé</div><div class="value">${fmtN(a.balance)}</div></div>
+    <div class="stat"><div class="label">Résultat</div><div class="value ${chPnlClass(eqPct)}">${eqPct >= 0 ? '+' : ''}${fmtN(eqPct)} %</div></div>
+    <div class="stat"><div class="label">Positions ouvertes</div><div class="value">${a.openPositions.length}</div></div>`;
+
+  const m = a.metrics, r = a.rules, funded = a.phase === 'funded';
+  const meters = [];
+  if(!funded) meters.push(chMeter('Objectif de profit', fmtN(Math.max(0, m.profitPct)) + ' % / ' + fmtN(r.profitTargetPct, 1) + ' %', (Math.max(0, m.profitPct) / r.profitTargetPct) * 100, false));
+  meters.push(chMeter('Perte du jour (limite ' + fmtN(r.maxDailyLossPct, 1) + ' %)', fmtN(m.dailyLossPct) + ' %', (m.dailyLossPct / r.maxDailyLossPct) * 100, true));
+  meters.push(chMeter('Drawdown total (limite ' + fmtN(r.maxTotalDrawdownPct, 1) + ' %)', fmtN(m.totalDrawdownPct) + ' %', (m.totalDrawdownPct / r.maxTotalDrawdownPct) * 100, true));
+  if(!funded) meters.push(chMeter('Jours de trading', m.tradingDays + ' / ' + r.minTradingDays, r.minTradingDays ? (m.tradingDays / r.minTradingDays) * 100 : 100, false));
+  if(!funded && r.maxDays) meters.push(chMeter('Durée de la phase', m.daysElapsed + ' / ' + r.maxDays + ' jours', (m.daysElapsed / r.maxDays) * 100, true));
+  document.getElementById('chDetailMeters').innerHTML = meters.join('');
+
+  document.getElementById('chOrderBlock').classList.toggle('hidden', a.status !== 'active');
+
+  const openBox = document.getElementById('chOpenBox');
+  openBox.innerHTML = a.openPositions.length ? `<table class="dt-table"><thead><tr><th>Actif</th><th>Qté</th><th>Entrée</th><th>SL</th><th>TP</th><th>Dernier prix</th><th>Latent</th><th></th></tr></thead><tbody>
+    ${a.openPositions.map(p => `<tr>
+      <td>${esc(p.symbol)}</td><td>${fmtN(p.qty, 4)}</td><td>${fmtN(p.entryPrice, 4)}</td><td>${fmtN(p.stopLoss, 4)}</td>
+      <td>${p.takeProfit != null ? fmtN(p.takeProfit, 4) : '—'}</td>
+      <td>${p.lastPrice != null ? fmtN(p.lastPrice, 4) : '—'}</td>
+      <td class="${chPnlClass(p.unrealizedPnl)}">${p.unrealizedPnl != null ? fmtN(p.unrealizedPnl) : '—'}</td>
+      <td><button class="btn btn-ghost" style="padding:4px 10px;font-size:10.5px" onclick="chClosePosition('${esc(p.id)}')">Fermer</button></td>
+    </tr>`).join('')}</tbody></table>` : '<div class="empty-state">Aucune position ouverte.</div>';
+
+  const closedBox = document.getElementById('chClosedBox');
+  closedBox.innerHTML = a.closedPositions.length ? `<table class="dt-table"><thead><tr><th>Actif</th><th>Qté</th><th>Entrée</th><th>Sortie</th><th>Résultat net</th><th>Motif</th><th>Date</th></tr></thead><tbody>
+    ${a.closedPositions.map(p => `<tr>
+      <td>${esc(p.symbol)}</td><td>${fmtN(p.qty, 4)}</td><td>${fmtN(p.entryPrice, 4)}</td><td>${fmtN(p.exitPrice, 4)}</td>
+      <td class="${chPnlClass(p.realizedPnl)}">${fmtN(p.realizedPnl)}</td>
+      <td>${esc(CH_EXIT[p.exitReason] || p.exitReason)}</td>
+      <td>${new Date(p.closedAt).toLocaleString('fr-FR')}</td>
+    </tr>`).join('')}</tbody></table>` : '<div class="empty-state">Aucun trade clôturé pour l\'instant.</div>';
+
+  const pay = a.payout;
+  let payHtml;
+  if(a.isDemo) payHtml = '<div class="empty-state">Les comptes de démo ne donnent pas droit à des retraits.</div>';
+  else if(!funded) payHtml = '<div class="empty-state">Les retraits sont disponibles une fois le compte financé (2 phases validées).</div>';
+  else {
+    payHtml = `<div class="kv" style="display:flex;justify-content:space-between;padding:6px 0"><span class="k">Profit réalisé disponible</span><span class="v">${fmtN(pay.grossProfit)} USDT</span></div>
+      <div class="kv" style="display:flex;justify-content:space-between;padding:6px 0"><span class="k">Votre part (${fmtN(r.profitSplitPct, 0)} %)</span><span class="v green">${fmtN(pay.traderShare)} USDT</span></div>`;
+    payHtml += pay.canRequest
+      ? `<div class="ch-order-form" style="margin-top:12px;grid-template-columns:1fr auto"><input id="chPayoutAmount" type="number" step="any" min="${pay.minAmount}" max="${pay.traderShare}" placeholder="Montant (USDT), min ${pay.minAmount}"><button class="btn btn-primary" style="padding:11px" onclick="chRequestPayout()">Demander le retrait</button></div>`
+      : `<div class="preview-note" style="margin-top:12px;margin-bottom:0">${esc(pay.blockReason || '')}</div>`;
+  }
+  if(a.payouts && a.payouts.length){
+    payHtml += `<table class="dt-table" style="margin-top:14px"><thead><tr><th>Date</th><th>Montant</th><th>Statut</th></tr></thead><tbody>
+      ${a.payouts.map(p => `<tr><td>${new Date(p.createdAt).toLocaleDateString('fr-FR')}</td><td>${fmtN(p.traderAmount)} USDT</td>
+      <td><span class="tag-pill ${p.status === 'approved' ? 'green' : (p.status === 'rejected' ? 'red' : 'gold')}">${p.status === 'approved' ? 'Versé sur le wallet' : (p.status === 'rejected' ? 'Rejeté' : 'En attente')}</span>${p.rejectionReason ? ' <span style="color:var(--sub);font-size:11.5px">' + esc(p.rejectionReason) + '</span>' : ''}</td></tr>`).join('')}</tbody></table>`;
+  }
+  document.getElementById('chPayoutBox').innerHTML = payHtml;
+}
+
+async function chPlaceOrder(){
+  if(!chSelectedId) return;
+  const qty = parseFloat(document.getElementById('chQty').value);
+  const stopLoss = parseFloat(document.getElementById('chSl').value);
+  const tpRaw = document.getElementById('chTp').value.trim();
+  if(!(qty > 0)){ showMsgToast('⚠️ Quantité invalide'); return; }
+  if(!(stopLoss > 0)){ showMsgToast('⚠️ Le stop-loss est obligatoire'); return; }
+  const body = {symbol: document.getElementById('chSymbol').value, qty, stopLoss};
+  if(tpRaw !== '') body.takeProfit = parseFloat(tpRaw);
+  try{
+    const pos = await adminApi('/challenges/accounts/' + chSelectedId + '/orders', {method:'POST', body:JSON.stringify(body)});
+    showMsgToast('✅ Position ouverte à ' + fmtN(pos.entryPrice, 4));
+    document.getElementById('chQty').value = ''; document.getElementById('chSl').value = ''; document.getElementById('chTp').value = '';
+    loadChallengesView();
+  }catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function chClosePosition(positionId){
+  try{
+    const r = await adminApi('/challenges/accounts/' + chSelectedId + '/positions/' + positionId + '/close', {method:'POST'});
+    showMsgToast('✅ Position fermée — résultat net ' + (r.realizedPnl >= 0 ? '+' : '') + fmtN(r.realizedPnl) + ' USDT');
+    loadChallengesView();
+  }catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function chRequestPayout(){
+  const amount = parseFloat(document.getElementById('chPayoutAmount').value);
+  if(!(amount > 0)){ showMsgToast('⚠️ Montant invalide'); return; }
+  if(!confirm('Demander un retrait de ' + fmtN(amount) + ' USDT ?\nLe profit correspondant est retiré de votre compte simulé dès maintenant.')) return;
+  try{
+    await adminApi('/challenges/accounts/' + chSelectedId + '/payouts', {method:'POST', body:JSON.stringify({amount})});
+    showMsgToast('✅ Demande envoyée — en attente de validation');
+    loadChallengesView();
+  }catch(e){ showMsgToast('❌ ' + e.message); }
+}
+
+/* ---- Admin : challenges ---- */
+let adminChPlansCache = [];
+let chEditingPlanId = null;
+let chConfirmPhrase = 'ACTIVER ARGENT REEL';
+
+function loadAdminChallenges(){
+  loadAdminChallengePayments(); loadAdminChallengePlans(); loadAdminChallengeAccounts(); loadAdminChallengePayouts();
+}
+async function loadAdminChallengePayments(){
+  const box = document.getElementById('adminChPaymentsBox');
+  try{
+    const s = await adminApi('/admin/challenges/settings');
+    chConfirmPhrase = s.confirmPhrase || chConfirmPhrase;
+    box.innerHTML = s.paymentsEnabled
+      ? `<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><span class="tag-pill red">ARGENT RÉEL ACTIVÉ</span><button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="adminSetChallengePayments(false)">Désactiver (repasser en démo)</button></div>`
+      : `<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><span class="tag-pill green">Mode démo (sûr)</span><button class="btn btn-ghost" style="padding:8px 16px;font-size:12.5px;color:var(--red)" onclick="adminSetChallengePayments(true)">Activer l'argent réel…</button></div>`;
+  }catch(e){ box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>'; }
+}
+async function adminSetChallengePayments(enabled){
+  const body = {enabled};
+  if(enabled){
+    const typed = prompt('ATTENTION : cela active les frais d\'inscription et les retraits en argent réel.\nÀ ne faire qu\'une fois le cadre légal tranché.\n\nPour confirmer, saisissez exactement :\n' + chConfirmPhrase, '');
+    if(typed === null) return;
+    body.confirm = typed;
+  }
+  try{
+    await adminApi('/admin/challenges/settings/payments', {method:'PATCH', body:JSON.stringify(body)});
+    showMsgToast(enabled ? '✅ Argent réel activé' : '✅ Retour en mode démo');
+    loadAdminChallenges();
+  }catch(e){ showMsgToast('❌ ' + e.message); }
+}
+
+async function loadAdminChallengePlans(){
+  const box = document.getElementById('adminChPlansBox');
+  try{
+    adminChPlansCache = await adminApi('/admin/challenges/plans');
+    box.innerHTML = adminChPlansCache.length ? `<table class="dt-table"><thead><tr><th>Plan</th><th>Capital</th><th>Frais</th><th>Objectifs</th><th>Limites (jour / total)</th><th>Jours min</th><th>Part</th><th>Statut</th><th></th></tr></thead><tbody>
+      ${adminChPlansCache.map(p => `<tr>
+        <td>${esc(p.name)}</td><td>${fmtN(p.accountSize, 0)}</td><td>${fmtN(p.feeAmount)}</td>
+        <td>${fmtN(p.phase1TargetPct, 1)} % / ${fmtN(p.phase2TargetPct, 1)} %</td>
+        <td>${fmtN(p.maxDailyLossPct, 1)} % / ${fmtN(p.maxTotalDrawdownPct, 1)} %</td>
+        <td>${p.minTradingDays}</td><td>${fmtN(p.profitSplitPct, 0)} %</td>
+        <td><span class="tag-pill ${p.active ? 'green' : ''}">${p.active ? 'Actif' : 'Masqué'}</span></td>
+        <td style="display:flex;gap:5px;flex-wrap:wrap">
+          <button class="btn btn-ghost" style="padding:4px 10px;font-size:10.5px" onclick="adminEditChallengePlan('${esc(p.id)}')">Modifier</button>
+          <button class="btn btn-ghost" style="padding:4px 10px;font-size:10.5px" onclick="adminToggleChallengePlan('${esc(p.id)}', ${!p.active})">${p.active ? 'Masquer' : 'Activer'}</button>
+        </td></tr>`).join('')}</tbody></table>` : '<div class="empty-state">Aucun plan.</div>';
+  }catch(e){ box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>'; }
+}
+function adminEditChallengePlan(id){
+  const p = adminChPlansCache.find(x => x.id === id);
+  if(!p) return;
+  chEditingPlanId = id;
+  const set = (el, v) => { document.getElementById(el).value = (v === null || v === undefined) ? '' : v; };
+  set('cpName', p.name); set('cpSize', p.accountSize); set('cpFee', p.feeAmount); set('cpT1', p.phase1TargetPct); set('cpT2', p.phase2TargetPct);
+  set('cpDaily', p.maxDailyLossPct); set('cpDd', p.maxTotalDrawdownPct); set('cpDays', p.minTradingDays);
+  set('cpMax1', p.phase1MaxDays); set('cpMax2', p.phase2MaxDays); set('cpSplit', p.profitSplitPct);
+  document.getElementById('chPlanFormTitle').textContent = 'Modifier le plan « ' + p.name + ' »';
+  document.getElementById('cpSaveBtn').textContent = 'Enregistrer les modifications';
+  document.getElementById('cpCancelBtn').classList.remove('hidden');
+  document.getElementById('chPlanFormTitle').scrollIntoView({behavior:'smooth'});
+}
+function adminResetChallengePlanForm(){
+  chEditingPlanId = null;
+  const defaults = {cpName:'', cpSize:10000, cpFee:89, cpT1:8, cpT2:5, cpDaily:5, cpDd:10, cpDays:4, cpMax1:30, cpMax2:60, cpSplit:80};
+  Object.entries(defaults).forEach(([id, v]) => { document.getElementById(id).value = v; });
+  document.getElementById('chPlanFormTitle').textContent = 'Nouveau plan';
+  document.getElementById('cpSaveBtn').textContent = 'Créer le plan';
+  document.getElementById('cpCancelBtn').classList.add('hidden');
+}
+async function adminSaveChallengePlan(){
+  const val = id => document.getElementById(id).value;
+  const decimal = id => Number(val(id));
+  const optionalInt = id => val(id).trim() === '' ? null : parseInt(val(id), 10);
+  const body = {
+    name: val('cpName').trim(),
+    accountSize: decimal('cpSize'), feeAmount: decimal('cpFee'),
+    phase1TargetPct: decimal('cpT1'), phase2TargetPct: decimal('cpT2'),
+    maxDailyLossPct: decimal('cpDaily'), maxTotalDrawdownPct: decimal('cpDd'),
+    minTradingDays: parseInt(val('cpDays'), 10),
+    phase1MaxDays: optionalInt('cpMax1'), phase2MaxDays: optionalInt('cpMax2'),
+    profitSplitPct: decimal('cpSplit'),
+  };
+  if(!body.name){ showMsgToast('⚠️ Nom obligatoire'); return; }
+  try{
+    if(chEditingPlanId) await adminApi('/admin/challenges/plans/' + chEditingPlanId, {method:'PATCH', body:JSON.stringify(body)});
+    else await adminApi('/admin/challenges/plans', {method:'POST', body:JSON.stringify(body)});
+    showMsgToast(chEditingPlanId ? '✅ Plan modifié' : '✅ Plan créé');
+    adminResetChallengePlanForm();
+    loadAdminChallengePlans();
+  }catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function adminToggleChallengePlan(id, active){
+  try{ await adminApi('/admin/challenges/plans/' + id, {method:'PATCH', body:JSON.stringify({active})}); loadAdminChallengePlans(); }
+  catch(e){ showMsgToast('❌ ' + e.message); }
+}
+
+async function loadAdminChallengeAccounts(){
+  const box = document.getElementById('adminChAccountsBox');
+  try{
+    const rows = await adminApi('/admin/challenges/accounts');
+    box.innerHTML = rows.length ? `<table class="dt-table"><thead><tr><th>Utilisateur</th><th>Plan</th><th>Statut</th><th>Type</th><th>Solde</th><th>Frais payés</th><th>Retiré</th><th>Pos.</th><th>Créé</th><th></th></tr></thead><tbody>
+      ${rows.map(a => `<tr>
+        <td>${esc(a.userEmail)}</td><td>${esc(a.planName)} · ${fmtN(a.accountSize, 0)}</td>
+        <td>${chStatusPill(a)}${a.failReason ? ' <span style="color:var(--sub);font-size:11px">' + esc(CH_FAIL[a.failReason] || a.failReason) + '</span>' : ''}</td>
+        <td>${a.isDemo ? 'Démo' : 'Réel'}</td><td>${fmtN(a.balance)}</td><td>${fmtN(a.feePaid)}</td><td>${fmtN(a.totalPaidOut)}</td><td>${a.openPositions}</td>
+        <td>${new Date(a.createdAt).toLocaleDateString('fr-FR')}</td>
+        <td>${a.status === 'active' ? `<button class="btn btn-ghost" style="padding:4px 10px;font-size:10.5px;color:var(--red)" onclick="adminCloseChallengeAccount('${esc(a.id)}')">Clôturer</button>` : ''}</td>
+      </tr>`).join('')}</tbody></table>` : '<div class="empty-state">Aucun compte de challenge.</div>';
+  }catch(e){ box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>'; }
+}
+async function adminCloseChallengeAccount(id){
+  const reason = prompt('Motif de la clôture forcée (tracé dans le journal d\'audit) :', '');
+  if(!reason || reason.trim().length < 3){ showMsgToast('⚠️ Motif obligatoire (3 caractères min.)'); return; }
+  try{ await adminApi('/admin/challenges/accounts/' + id + '/close', {method:'POST', body:JSON.stringify({reason})}); showMsgToast('✅ Compte clôturé'); loadAdminChallengeAccounts(); }
+  catch(e){ showMsgToast('❌ ' + e.message); }
+}
+
+async function loadAdminChallengePayouts(){
+  const box = document.getElementById('adminChPayoutsBox');
+  try{
+    const rows = await adminApi('/admin/challenges/payouts');
+    box.innerHTML = rows.length ? `<table class="dt-table"><thead><tr><th>Date</th><th>Utilisateur</th><th>KYC</th><th>Plan</th><th>À verser</th><th>Profit brut</th><th>Statut</th><th></th></tr></thead><tbody>
+      ${rows.map(p => `<tr>
+        <td>${new Date(p.createdAt).toLocaleDateString('fr-FR')}</td><td>${esc(p.userEmail)}</td>
+        <td><span class="tag-pill ${p.kycStatus === 'verified' ? 'green' : 'red'}">${esc(p.kycStatus)}</span></td>
+        <td>${esc(p.planName)}</td><td><b>${fmtN(p.traderAmount)}</b> USDT</td><td>${fmtN(p.grossAmount)}</td>
+        <td><span class="tag-pill ${p.status === 'approved' ? 'green' : (p.status === 'rejected' ? 'red' : 'gold')}">${p.status === 'approved' ? 'Approuvé' : (p.status === 'rejected' ? 'Rejeté' : 'En attente')}</span></td>
+        <td style="display:flex;gap:5px;flex-wrap:wrap">${p.status === 'pending' ? `
+          <button class="btn btn-primary" style="padding:4px 10px;font-size:10.5px" onclick="adminApproveChallengePayout('${esc(p.id)}', ${Number(p.traderAmount)})">Approuver</button>
+          <button class="btn btn-ghost" style="padding:4px 10px;font-size:10.5px;color:var(--red)" onclick="adminRejectChallengePayout('${esc(p.id)}')">Rejeter</button>` : ''}</td>
+      </tr>`).join('')}</tbody></table>` : '<div class="empty-state">Aucune demande de retrait.</div>';
+  }catch(e){ box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>'; }
+}
+async function adminApproveChallengePayout(id, amount){
+  if(!confirm('Approuver ce retrait ?\n' + fmtN(amount) + ' USDT seront crédités sur le wallet de l\'utilisateur (il retirera ensuite via le flux de retrait habituel).')) return;
+  try{ await adminApi('/admin/challenges/payouts/' + id + '/approve', {method:'POST'}); showMsgToast('✅ Retrait approuvé'); loadAdminChallengePayouts(); }
+  catch(e){ showMsgToast('❌ ' + e.message); }
+}
+async function adminRejectChallengePayout(id){
+  const reason = prompt('Motif du rejet (le profit réservé est rendu au compte) :', '');
+  if(!reason || reason.trim().length < 3){ showMsgToast('⚠️ Motif obligatoire (3 caractères min.)'); return; }
+  try{ await adminApi('/admin/challenges/payouts/' + id + '/reject', {method:'POST', body:JSON.stringify({reason})}); showMsgToast('✅ Retrait rejeté'); loadAdminChallengePayouts(); }
+  catch(e){ showMsgToast('❌ ' + e.message); }
+}
+
 async function loadAdminBots(){
   const box = document.getElementById('adminBotsBox');
   try{

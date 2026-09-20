@@ -18,6 +18,7 @@ import { PositionModule } from './position/position.module';
 import { CustodyModule } from './custody/custody.module';
 import { AdminModule } from './admin/admin.module';
 import { KycModule } from './kyc/kyc.module';
+import { ChallengeModule } from './challenge/challenge.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -44,6 +45,7 @@ import { AppController } from './app.controller';
     CustodyModule,
     AdminModule,
     KycModule,
+    ChallengeModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

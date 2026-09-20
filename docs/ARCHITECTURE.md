@@ -166,6 +166,40 @@ Deux approches possibles, du plus simple au plus automatisé — recommandation 
 - **Codes promo** : gérés côté Stripe ou table interne, appliqués au checkout
 - Statistiques de revenus dans le dashboard admin (MRR, churn, revenus par plan)
 
+### 4.13 Challenges « prop firm » (`apps/api` → `ChallengeModule`, `packages/risk-engine/challenge-rules.ts`)
+Le client paie un challenge, trade un capital **simulé** aux prix réels du marché, et — s'il respecte les règles — accède à un compte financé dont il peut retirer une part des gains.
+
+**Principe de sécurité : aucun fonds de tiers n'est utilisé pour trader.** Un compte de challenge est un simple solde fictif : aucun ordre n'est envoyé à l'exchange (contrairement au trading du §4.6). Cela évite la partie la plus risquée du projet (la garde de fonds, §4.6bis). L'argent réel n'intervient qu'à deux endroits : les **frais d'inscription** et les **retraits de gains**.
+
+**Format : 2 phases puis compte financé.** `phase1` (objectif ~8 %) → `phase2` (~5 %) → `funded`. À chaque changement de phase le compte repart de sa taille initiale. Toutes les valeurs sont dans un `ChallengePlan` géré par l'admin, et **copiées sur le compte à l'achat** : modifier un plan ne change jamais les règles d'un compte en cours.
+
+| Règle | Comportement |
+|---|---|
+| Perte journalière max | % de l'équité au début du jour **UTC** ; dépassement = compte échoué |
+| Drawdown total max | **Statique** : % du capital de départ de la phase ; dépassement = compte échoué |
+| Objectif de profit | Solde **réalisé** ≥ objectif, **compte à plat** (aucune position ouverte), jours de trading minimum atteints |
+| Durée max de la phase | Optionnelle ; dépassée sans objectif = compte échoué (atteindre l'objectif le dernier jour valide la phase) |
+| Ordres | Long uniquement, **stop-loss obligatoire**, risque ≤ 3 % de l'équité par trade, **aucun levier**, frais simulés 0,1 % par côté |
+
+Une violation l'emporte toujours sur l'objectif (un compte repassé au vert après avoir dépassé sa limite échoue quand même).
+
+**Moteur.** La logique de règles est **pure** (`challenge-rules.ts`, sans base de données ni exchange) : testable seule. `ChallengeService` la branche sur la base. Un job planifié (chaque minute, comme `PositionService`) ferme les positions dont le SL/TP est touché, bascule le repère de perte journalière à minuit UTC, et applique le verdict. Toute opération qui modifie un compte passe par un verrou de ligne (`SELECT … FOR UPDATE`) pour que le job et une action utilisateur ne s'écrasent pas.
+
+**Argent réel — derrière un interrupteur, éteint par défaut (§8.3).** `SystemSetting.challengePaymentsEnabled` :
+- **Éteint (défaut)** : les challenges sont des **comptes de démo gratuits** ; aucun frais, **aucun retrait possible**. Tout le produit est testable sans licence.
+- **Allumé** : les frais sont débités du wallet USDT (dans la même transaction que la création du compte) et les gains d'un compte financé deviennent retirables.
+- Pour l'allumer, l'admin doit recopier une phrase de confirmation ; l'éteindre est immédiat. Chaque changement est dans l'audit log.
+
+**Retraits de gains.** Conditions : compte financé actif et non démo, **KYC vérifié**, compte à plat, 14 jours depuis le financement ou le dernier retrait, minimum 50 USDT, une seule demande à la fois. À la demande, le profit brut est **réservé** (retiré du solde simulé) ; à l'approbation admin, la part du trader est créditée sur son **wallet USDT**, puis il retire via le flux existant (§4.6bis, validé par un admin). Un rejet rend le profit réservé au compte. Comme pour les dépôts/retraits, l'approbation est une revendication atomique de `pending` : un double clic ne peut pas payer deux fois.
+
+**Limites connues (à décider avant l'ouverture au public) :**
+- Les prix sont ceux de la dernière bougie 1 min au passage du job : une mèche plus courte qu'une minute peut toucher un SL/TP sans être vue, et un gap se règle au prix du marché (pas au prix du stop).
+- Les frais d'inscription passent par le wallet interne (donc par le dépôt semi-manuel). Aucun processeur de paiement n'est branché : plusieurs processeurs classent le trading/forex « à haut risque » et peuvent refuser ou geler un compte marchand — à vérifier avant d'en choisir un.
+- Les 4 plans créés au premier démarrage (Starter/Standard/Pro/Elite) sont des valeurs de départ, à réviser.
+- Le cadre légal reste ouvert (§8.3) : vendre des challenges et verser des gains est surveillé dans plusieurs juridictions (ex. AMF en France).
+
+**Tests.** `risk-engine` : 25 tests unitaires des règles (`npm test --workspace=packages/risk-engine`). `apps/api` : 23 tests d'intégration sur une vraie base Postgres (verrous, transactions, flux d'argent), **désactivés sauf si `TEST_DATABASE_URL` est défini** pour ne jamais toucher une base par accident.
+
 ---
 
 ## 5. Modèle de données (vue d'ensemble)

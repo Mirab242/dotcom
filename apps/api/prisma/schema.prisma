@@ -38,6 +38,8 @@ model User {
   deposits       Deposit[]
   withdrawals    Withdrawal[]
   kycSubmissions KycSubmission[]
+  challengeAccounts ChallengeAccount[]
+  challengePayouts  ChallengePayout[]
 
   @@map("users")
 }
@@ -274,6 +276,11 @@ model SystemSetting {
   // bloque tout nouvel ordre pour l'utilisateur concerné (pas besoin d'activer le kill switch global).
   maxDailyLossPercent  Decimal  @default(5)
   maxDrawdownPercent   Decimal  @default(20)
+  // INTERRUPTEUR ARGENT RÉEL des challenges (§8.3 ARCHITECTURE.md). Désactivé par défaut :
+  // tant qu'il est à false, les challenges sont des comptes de démo gratuits (aucun frais, aucun
+  // retrait possible). Ne l'activer qu'une fois le cadre légal tranché — l'admin doit confirmer
+  // explicitement, et chaque changement est tracé dans l'audit log.
+  challengePaymentsEnabled Boolean @default(false)
   updatedAt            DateTime @updatedAt
 
   @@map("system_settings")
@@ -291,4 +298,117 @@ model AuditLog {
   actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Challenges "prop firm" — comptes de trading SIMULÉS (aucun fonds de tiers, aucun ordre envoyé à
+// l'exchange). 2 phases d'évaluation puis un compte financé. Les règles sont copiées sur le compte à
+// l'achat : modifier un plan plus tard ne change jamais les règles d'un compte déjà en cours.
+// ---------------------------------------------------------------------------------------------
+model ChallengePlan {
+  id                  String   @id @default(uuid())
+  name                String
+  accountSize         Decimal // capital simulé de départ de chaque phase, en USDT
+  feeAmount           Decimal // frais d'inscription en USDT (ignorés en mode démo)
+  phase1TargetPct     Decimal  @default(8)
+  phase2TargetPct     Decimal  @default(5)
+  maxDailyLossPct     Decimal  @default(5)
+  maxTotalDrawdownPct Decimal  @default(10)
+  minTradingDays      Int      @default(4)
+  phase1MaxDays       Int? // null = durée illimitée
+  phase2MaxDays       Int?
+  profitSplitPct      Decimal  @default(80) // part des profits versée au trader sur un compte financé
+  active              Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  accounts ChallengeAccount[]
+
+  @@map("challenge_plans")
+}
+
+model ChallengeAccount {
+  id                  String    @id @default(uuid())
+  userId              String
+  planId              String
+  planName            String
+  isDemo              Boolean   @default(false) // démo = gratuit, aucun retrait possible
+  // Règles figées à l'achat (copie du plan)
+  accountSize         Decimal
+  feePaid             Decimal   @default(0)
+  phase1TargetPct     Decimal
+  phase2TargetPct     Decimal
+  maxDailyLossPct     Decimal
+  maxTotalDrawdownPct Decimal
+  minTradingDays      Int
+  phase1MaxDays       Int?
+  phase2MaxDays       Int?
+  profitSplitPct      Decimal
+  // État
+  phase               String    @default("phase1") // phase1 | phase2 | funded
+  status              String    @default("active") // active | failed | closed
+  failReason          String? // max_daily_loss | max_total_drawdown | time_limit | admin
+  balance             Decimal // solde réalisé simulé (trades fermés)
+  dayStartEquity      Decimal // équité au début du jour UTC — base de la règle de perte journalière
+  dayStartDate        DateTime // jour UTC auquel dayStartEquity se rapporte
+  phaseStartedAt      DateTime  @default(now())
+  phase1PassedAt      DateTime?
+  phase2PassedAt      DateTime?
+  fundedAt            DateTime?
+  endedAt             DateTime?
+  totalPaidOut        Decimal   @default(0) // profit brut déjà retiré (informatif)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan      ChallengePlan       @relation(fields: [planId], references: [id])
+  positions ChallengePosition[]
+  payouts   ChallengePayout[]
+
+  @@index([userId, status])
+  @@map("challenge_accounts")
+}
+
+model ChallengePosition {
+  id          String    @id @default(uuid())
+  accountId   String
+  symbol      String
+  qty         Decimal
+  entryPrice  Decimal
+  stopLoss    Decimal
+  takeProfit  Decimal?
+  phase       String // phase du compte à l'ouverture — sert au calcul des jours de trading par phase
+  status      String    @default("open") // open | closed
+  exitPrice   Decimal?
+  realizedPnl Decimal? // net des frais simulés
+  exitReason  String? // sl | tp | manual | account_failed
+  openedAt    DateTime  @default(now())
+  closedAt    DateTime?
+
+  account ChallengeAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, status])
+  @@map("challenge_positions")
+}
+
+// Demande de retrait de gains d'un compte financé. Le montant brut est retiré du solde simulé dès la
+// demande (réservé), rendu si la demande est rejetée. À l'approbation, la part du trader est créditée
+// sur son wallet USDT — puis il retire via le flux de retrait existant (validé par un admin).
+model ChallengePayout {
+  id                String    @id @default(uuid())
+  accountId         String
+  userId            String
+  traderAmount      Decimal // ce que reçoit le trader
+  grossAmount       Decimal // profit brut retiré du compte simulé
+  status            String    @default("pending") // pending | approved | rejected
+  rejectionReason   String?
+  reviewedByAdminId String?
+  reviewedAt        DateTime?
+  createdAt         DateTime  @default(now())
+
+  account ChallengeAccount @relation(fields: [accountId], references: [id])
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("challenge_payouts")
 }
