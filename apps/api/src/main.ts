@@ -20,6 +20,13 @@ async function bootstrap() {
         directives: {
           defaultSrc: ["'self'"],
           scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com'],
+          // helmet ajoute par défaut `script-src-attr 'none'`, qui bloque TOUS les onclick=/onchange=
+          // de demo.html (boutons Connexion, navigation, ordres... rien ne répondait). scriptSrc ne
+          // couvre que les balises <script>, pas les attributs : il faut l'assouplir séparément.
+          // Compromis assumé et cohérent avec 'unsafe-inline' ci-dessus ; la vraie défense contre le
+          // XSS reste l'échappement esc() de toute donnée API. À terme : passer à addEventListener
+          // (délégation d'événements) pour pouvoir remettre 'none'.
+          scriptSrcAttr: ["'unsafe-inline'"],
           styleSrc: ["'self'", "'unsafe-inline'"],
           imgSrc: ["'self'", 'data:'],
           fontSrc: ["'self'", 'data:'],
