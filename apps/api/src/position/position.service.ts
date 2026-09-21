@@ -27,6 +27,7 @@ const FREE_TIER_COMMISSION_RATE = 0.1;
 @Injectable()
 export class PositionService {
   private readonly logger = new Logger(PositionService.name);
+  private monitoring = false; // un passage plus long qu'une minute ne doit pas se chevaucher avec le suivant
 
   constructor(
     private prisma: PrismaService,
@@ -73,6 +74,16 @@ export class PositionService {
   /** Job planifié — vérifie chaque position ouverte contre le dernier prix connu. */
   @Cron(CronExpression.EVERY_MINUTE)
   async monitorPositions() {
+    if (this.monitoring) return;
+    this.monitoring = true;
+    try {
+      await this.monitorOpenPositions();
+    } finally {
+      this.monitoring = false;
+    }
+  }
+
+  private async monitorOpenPositions() {
     const openPositions = await this.prisma.position.findMany({ where: { status: 'open' } });
     for (const position of openPositions) {
       try {
@@ -142,55 +153,77 @@ export class PositionService {
     const filledQty = result.filledAmount > 0 ? result.filledAmount : qty;
     const exitPrice = result.averagePrice ?? entryPrice;
     const cost = filledQty * exitPrice;
-
-    await this.walletService.debit(position.userId, base, filledQty, 'trade_pnl', position.id);
-    await this.walletService.credit(position.userId, quote, cost, 'trade_pnl', position.id);
-    const equityAfter = await this.riskService.computeCurrentEquity(position.userId);
-
-    const closeOrder = await this.prisma.order.create({
-      data: {
-        userId: position.userId,
-        symbol: position.symbol,
-        side: 'sell',
-        type: 'market',
-        qty: filledQty,
-        mode: 'auto',
-        exchangeOrderId: result.exchangeOrderId,
-        exchangeStatus: result.status,
-        filledQty,
-        avgPrice: exitPrice,
-        status: 'filled',
-        equityAfter,
-      },
-    });
-
     const realizedPnl = (exitPrice - entryPrice) * filledQty;
 
-    let commissionCharged: number | null = null;
-    if (realizedPnl > 0) {
-      const user = await this.prisma.user.findUnique({ where: { id: position.userId } });
-      if (user && user.subscriptionTier !== 'pro') {
-        commissionCharged = realizedPnl * FREE_TIER_COMMISSION_RATE;
-        await this.walletService.debit(position.userId, quote, commissionCharged, 'commission', position.id);
-      }
-    }
-
+    // LA VENTE A EU LIEU chez l'exchange. On acte TOUT DE SUITE la fermeture, avant toute écriture
+    // comptable : si l'une d'elles échouait avec la position encore "open", le job repasserait la
+    // minute suivante et REVENDRAIT — en argent réel, jusqu'à vendre d'autres actifs détenus sur le
+    // même compte. Une position déjà vendue ne doit plus jamais être rouverte par une erreur interne.
     await this.prisma.position.update({
       where: { id: position.id },
-      data: {
-        status: 'closed',
-        exitPrice,
-        realizedPnl,
-        commissionCharged,
-        exitReason: reason,
-        exitOrderId: closeOrder.id,
-        closedAt: new Date(),
-      },
+      data: { status: 'closed', exitPrice, realizedPnl, exitReason: reason, closedAt: new Date() },
     });
 
-    this.logger.log(
-      `Position ${position.id} (${position.symbol}) fermée [${reason}] — P&L: ${realizedPnl.toFixed(4)} ${quote}` +
-        (commissionCharged ? ` (commission: -${commissionCharged.toFixed(4)} ${quote})` : ''),
-    );
+    try {
+      await this.walletService.debit(position.userId, base, filledQty, 'trade_pnl', position.id);
+      await this.walletService.credit(position.userId, quote, cost, 'trade_pnl', position.id);
+      const equityAfter = await this.riskService.computeCurrentEquity(position.userId);
+
+      const closeOrder = await this.prisma.order.create({
+        data: {
+          userId: position.userId,
+          symbol: position.symbol,
+          side: 'sell',
+          type: 'market',
+          qty: filledQty,
+          mode: 'auto',
+          exchangeOrderId: result.exchangeOrderId,
+          exchangeStatus: result.status,
+          filledQty,
+          avgPrice: exitPrice,
+          status: 'filled',
+          equityAfter,
+        },
+      });
+
+      let commissionCharged: number | null = null;
+      if (realizedPnl > 0) {
+        const user = await this.prisma.user.findUnique({ where: { id: position.userId } });
+        if (user && user.subscriptionTier !== 'pro') {
+          commissionCharged = realizedPnl * FREE_TIER_COMMISSION_RATE;
+          await this.walletService.debit(position.userId, quote, commissionCharged, 'commission', position.id);
+        }
+      }
+
+      await this.prisma.position.update({
+        where: { id: position.id },
+        data: { commissionCharged, exitOrderId: closeOrder.id },
+      });
+
+      this.logger.log(
+        `Position ${position.id} (${position.symbol}) fermée [${reason}] — P&L: ${realizedPnl.toFixed(4)} ${quote}` +
+          (commissionCharged ? ` (commission: -${commissionCharged.toFixed(4)} ${quote})` : ''),
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur de règlement inconnue';
+      this.logger.error(`Position ${position.id} VENDUE chez l'exchange mais règlement interne en échec : ${message}`);
+      await this.prisma.auditLog
+        .create({
+          data: {
+            actorId: position.userId,
+            action: 'position.settlement_failed',
+            target: position.id,
+            metadata: JSON.stringify({
+              symbol: position.symbol,
+              reason,
+              exchangeOrderId: result.exchangeOrderId,
+              filledQty,
+              exitPrice,
+              error: message,
+            }),
+          },
+        })
+        .catch(() => undefined); // le journal ne doit jamais masquer la fermeture elle-même
+    }
   }
 }

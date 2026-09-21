@@ -1,5 +1,6 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { OrderSide } from '@dot-trader/shared-types';
+import type { ExchangeOrderResult } from '@dot-trader/exchange-connectors';
 import { computePositionSize, validateStopLoss } from '@dot-trader/risk-engine';
 import { PrismaService } from '../prisma/prisma.service';
 import { ExchangeService } from '../exchange/exchange.service';
@@ -23,6 +24,8 @@ const FREE_TIER_MAX_RISK_PERCENT = 1; // §4.10 — le tier "pro" débloque jusq
  */
 @Injectable()
 export class TradingService {
+  private readonly logger = new Logger(TradingService.name);
+
   constructor(
     private prisma: PrismaService,
     private exchangeService: ExchangeService,
@@ -182,8 +185,9 @@ export class TradingService {
       },
     });
 
+    let result: ExchangeOrderResult;
     try {
-      const result = await this.exchangeService.getConnector().placeOrder({
+      result = await this.exchangeService.getConnector().placeOrder({
         symbol: params.symbol,
         side: params.side === 'buy' ? OrderSide.BUY : OrderSide.SELL,
         type: params.type,
@@ -191,36 +195,68 @@ export class TradingService {
         price: params.price,
         clientOrderId: order.id,
       });
-
-      // IMPORTANT : un ordre limite qui ne s'exécute pas immédiatement revient avec
-      // filledAmount = 0 et status "open" — il ne faut surtout pas le traiter comme rempli
-      // (sinon on créditerait/débiterait le wallet pour un échange qui n'a pas eu lieu).
-      const isFilled = this.isFilledStatus(result.status) && result.filledAmount > 0;
-      let equityAfter: number | null = null;
-
-      if (isFilled) {
-        await this.settleWallet(userId, base, quote, params.side, result.filledAmount, result.averagePrice ?? params.price ?? 0, order.id);
-        equityAfter = await this.riskService.computeCurrentEquity(userId);
-      }
-
-      return this.prisma.order.update({
-        where: { id: order.id },
-        data: {
-          exchangeOrderId: result.exchangeOrderId,
-          exchangeStatus: result.status,
-          filledQty: result.filledAmount,
-          avgPrice: result.averagePrice,
-          status: isFilled ? 'filled' : 'open',
-          equityAfter,
-        },
-      });
     } catch (err) {
+      // L'exchange a refusé (ou n'a pas répondu) : rien n'a été exécuté, "failed" est exact.
       const message = err instanceof Error ? err.message : 'Erreur exchange inconnue';
       return this.prisma.order.update({
         where: { id: order.id },
         data: { status: 'failed', errorMessage: message },
       });
     }
+
+    // À PARTIR D'ICI l'ordre est parti chez l'exchange. En argent réel il ne doit plus jamais être
+    // marqué "failed" : l'achat a eu lieu même si notre comptabilité interne bute ensuite (prix qui
+    // a bougé de plus de la marge de 1 %, arrondi...). Le marquer "failed" cacherait une position
+    // réelle, que ni le stop-loss ni la réconciliation n'associeraient à un ordre.
+
+    // IMPORTANT : un ordre limite qui ne s'exécute pas immédiatement revient avec
+    // filledAmount = 0 et status "open" — il ne faut surtout pas le traiter comme rempli
+    // (sinon on créditerait/débiterait le wallet pour un échange qui n'a pas eu lieu).
+    const isFilled = this.isFilledStatus(result.status) && result.filledAmount > 0;
+    let equityAfter: number | null = null;
+    let settlementError: string | null = null;
+
+    if (isFilled) {
+      try {
+        await this.settleWallet(userId, base, quote, params.side, result.filledAmount, result.averagePrice ?? params.price ?? 0, order.id);
+        equityAfter = await this.riskService.computeCurrentEquity(userId);
+      } catch (err) {
+        settlementError = err instanceof Error ? err.message : 'Erreur de règlement inconnue';
+        this.logger.error(`Ordre ${order.id} EXÉCUTÉ chez l'exchange mais règlement interne en échec : ${settlementError}`);
+        await this.prisma.auditLog
+          .create({
+            data: {
+              actorId: userId,
+              action: 'order.settlement_failed',
+              target: order.id,
+              metadata: JSON.stringify({
+                exchangeOrderId: result.exchangeOrderId,
+                symbol: params.symbol,
+                side: params.side,
+                filledQty: result.filledAmount,
+                avgPrice: result.averagePrice,
+                error: settlementError,
+              }),
+            },
+          })
+          .catch(() => undefined); // le journal ne doit jamais masquer l'ordre lui-même
+      }
+    }
+
+    return this.prisma.order.update({
+      where: { id: order.id },
+      data: {
+        exchangeOrderId: result.exchangeOrderId,
+        exchangeStatus: result.status,
+        filledQty: result.filledAmount,
+        avgPrice: result.averagePrice,
+        status: isFilled ? 'filled' : 'open',
+        equityAfter,
+        errorMessage: settlementError
+          ? `EXÉCUTÉ chez l'exchange, mais règlement interne en échec — à rapprocher à la main (Admin → Réconciliation) : ${settlementError}`
+          : null,
+      },
+    });
   }
 
   private isFilledStatus(status: string): boolean {
